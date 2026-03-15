@@ -1,0 +1,503 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #0d1117;
+  min-height: 100vh;
+  color: #e6edf3;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px;
+  background-color: #0d1117;
+  min-height: 100vh;
+}
+
+/* 头部区域 */
+.header {
+  background: #161b22;
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #30363d;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.header h1 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #58a6ff;
+  margin-bottom: 10px;
+  text-shadow: 0 0 20px rgba(88, 166, 255, 0.3);
+}
+
+.error-message {
+  background-color: rgba(255, 77, 79, 0.15);
+  border: 1px solid rgba(255, 77, 79, 0.4);
+  color: #ff7b72;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.close-error {
+  background: none;
+  border: none;
+  color: #ff7b72;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.header-info {
+  display: flex;
+  align-items: center;
+}
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #8b949e;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.status-dot.active {
+  background-color: #3fb950;
+  color: #3fb950;
+}
+
+.status-dot.inactive {
+  background-color: #f85149;
+  color: #f85149;
+}
+
+/* 按钮样式 */
+.btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+  color: #ffffff;
+  box-shadow: 0 0 15px rgba(46, 160, 67, 0.3);
+  padding: 5px 14px;
+  font-size: 12px;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #2ea043 0%, #3fb950 100%);
+  box-shadow: 0 0 25px rgba(46, 160, 67, 0.5);
+}
+
+.btn-primary:disabled {
+  background: #21262d;
+  color: #484f58;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* 导航标签 */
+.nav-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.nav-tab {
+  padding: 8px 20px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #8b949e;
+  transition: all 0.2s;
+}
+
+.nav-tab:hover {
+  color: #58a6ff;
+  background: #1f2428;
+}
+
+.nav-tab.active {
+  background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%);
+  color: #ffffff;
+  border-color: #1f6feb;
+  box-shadow: 0 0 20px rgba(31, 111, 235, 0.4);
+}
+
+/* 内容区域 */
+.content {
+  background: #161b22;
+  padding: 20px;
+  border-radius: 0 12px 12px 12px;
+  border: 1px solid #30363d;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* 公式表单 */
+.formula-form {
+  background: #0d1117;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  border: 1px solid #30363d;
+}
+
+.info-banner {
+  background: rgba(88, 166, 255, 0.1);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  padding: 10px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  color: #58a6ff;
+  font-size: 14px;
+}
+
+.formula-form h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #58a6ff;
+}
+
+.formula-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.formula-item label {
+  font-size: 12px;
+  color: #8b949e;
+}
+
+.formula-item input {
+  width: 60px;
+  padding: 4px 8px;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  font-size: 12px;
+  background: #0d1117;
+  color: #e6edf3;
+  transition: all 0.2s;
+}
+
+.formula-item input:focus {
+  outline: none;
+  border-color: #58a6ff;
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+}
+
+.formula-item .unit {
+  font-size: 12px;
+  color: #6e7681;
+}
+
+.btn-remove {
+  background: rgba(248, 81, 73, 0.2);
+  color: #f85149;
+  border: 1px solid rgba(248, 81, 73, 0.4);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-remove:hover {
+  background: rgba(248, 81, 73, 0.3);
+}
+
+.btn-add {
+  background: rgba(63, 185, 80, 0.2);
+  color: #3fb950;
+  border: 1px solid rgba(63, 185, 80, 0.4);
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-add:hover {
+  background: rgba(63, 185, 80, 0.3);
+}
+
+.btn-calculate {
+  background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%);
+  color: white;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 0 10px rgba(31, 111, 235, 0.3);
+}
+
+.btn-calculate:hover {
+  background: linear-gradient(135deg, #388bfd 0%, #58a9ff 100%);
+  box-shadow: 0 0 25px rgba(31, 111, 235, 0.5);
+}
+
+.btn-calculate:disabled {
+  background: #21262d;
+  color: #484f58;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.total-weight {
+  font-size: 14px;
+  color: #8b949e;
+  margin-left: 16px;
+}
+
+.total-weight.invalid {
+  color: #f85149;
+}
+
+/* 股票表格 */
+.stock-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stock-table th,
+.stock-table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #30363d;
+}
+
+.stock-table th {
+  background: #0d1117;
+  font-weight: 600;
+  color: #8b949e;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stock-table tr:hover {
+  background: rgba(88, 166, 255, 0.05);
+}
+
+.stock-table tr:last-child td {
+  border-bottom: none;
+}
+
+.stock-code {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 13px;
+  color: #8b949e;
+}
+
+.stock-name {
+  color: #58a6ff;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.return-positive {
+  color: #f85149;
+  font-weight: 500;
+}
+
+.return-negative {
+  color: #3fb950;
+  font-weight: 500;
+}
+
+/* 热力图 */
+.heatmap-container {
+  overflow-x: auto;
+}
+
+.heatmap-wrapper {
+  width: 100%;
+}
+
+.heatmap-grid {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+
+.heatmap-column {
+  flex: 1;
+  min-width: 0;
+}
+
+.heatmap-date-header {
+  text-align: center;
+  font-weight: 600;
+  padding: 10px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-bottom: none;
+  font-size: 13px;
+  color: #8b949e;
+}
+
+.heatmap-stocks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.heatmap-stock-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 4px;
+  color: white;
+  transition: opacity 0.15s ease;
+  cursor: pointer;
+  position: relative;
+  opacity: 1;
+  gap: 3px;
+}
+
+.heatmap-stock-item.item-dimmed {
+  opacity: 0.4;
+}
+
+.stock-rank {
+  font-size: 11px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.stock-info {
+  text-align: center;
+  min-width: 0;
+}
+
+.stock-info .stock-name {
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.stock-info .stock-code {
+  font-size: 10px;
+  opacity: 0.85;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.stock-return {
+  font-size: 11px;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* 加载和无数据状态 */
+.loading {
+  text-align: center;
+  padding: 48px;
+  color: #6e7681;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 200px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(88, 166, 255, 0.3);
+  border-top-color: #58a6ff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  box-sizing: border-box;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.no-data {
+  text-align: center;
+  padding: 48px;
+  color: #6e7681;
+  font-size: 14px;
+}
+
+.error {
+  text-align: center;
+  padding: 48px;
+  color: #f85149;
+  font-size: 14px;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
