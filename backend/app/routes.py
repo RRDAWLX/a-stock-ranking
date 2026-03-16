@@ -212,3 +212,67 @@ def latest_date():
     """获取最新交易日期"""
     date = calculator.get_latest_trading_date()
     return jsonify({'date': date})
+
+
+@api.route('/api/weighted-rank/calculate', methods=['POST'])
+def calculate_weighted_rank():
+    """根据自定义公式计算加权收益排行分"""
+    data = request.get_json()
+
+    if not data:
+        return jsonify({'error': '无效的请求数据'}), 400
+
+    # 解析公式: [{"days": 1, "weight": 0.5}, {"days": 20, "weight": 0.5}, ...]
+    formula_spec = data.get('formula', [])
+    if not formula_spec:
+        return jsonify({'error': '公式不能为空'}), 400
+
+    # 验证权重总和
+    total_weight = sum(item.get('weight', 0) for item in formula_spec)
+    if abs(total_weight - 1.0) > 0.01:
+        return jsonify({'error': '权重总和必须为1.0'}), 400
+
+    # 转换为计算器需要的格式
+    formula = [(item['days'], item['weight']) for item in formula_spec]
+
+    # 可选参数: limit
+    limit = data.get('limit')
+
+    # 计算所有股票加权排行分
+    results = calculator.calculate_weighted_ranking_score(formula)
+
+    # 如果指定了limit
+    if limit:
+        results = results[:limit]
+
+    return jsonify({
+        'formula': formula_spec,
+        'total': len(results),
+        'data': results
+    })
+
+
+@api.route('/api/weighted-rank/heatmap', methods=['POST'])
+def get_weighted_rank_heatmap():
+    """获取加权排行分热力图数据"""
+    data = request.get_json() or {}
+
+    # 解析公式
+    formula_spec = data.get('formula', [])
+    if not formula_spec:
+        formula_spec = [
+            {'days': 1, 'weight': 0.1},
+            {'days': 5, 'weight': 0.4},
+            {'days': 20, 'weight': 0.5}
+        ]
+
+    formula = [(item['days'], item['weight']) for item in formula_spec]
+    days = data.get('days', 10)
+
+    heatmap_data = calculator.get_weighted_rank_heatmap_data(formula, days)
+
+    return jsonify({
+        'formula': formula_spec,
+        'dates': list(heatmap_data.keys()),
+        'data': heatmap_data
+    })

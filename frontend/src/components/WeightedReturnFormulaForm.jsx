@@ -6,7 +6,7 @@ const DEFAULT_FORMULA = [
   { days: 20, weight: 0.5 }
 ]
 
-export default function WeightedReturnFormulaForm({ title = '收益计算公式', initialFormula, onCalculate }) {
+export default function WeightedReturnFormulaForm({ title = '收益计算公式', description, initialFormula, onCalculate, showRank = false }) {
   const [formula, setFormula] = useState(initialFormula || DEFAULT_FORMULA)
 
   // 当 initialFormula 变化时更新
@@ -46,9 +46,12 @@ export default function WeightedReturnFormulaForm({ title = '收益计算公式'
   const totalWeight = formula.reduce((sum, item) => sum + item.weight, 0)
   const isValid = Math.abs(totalWeight - 1) < 0.01
 
+  const rateLabel = showRank ? '日收益率排行 × ' : '日收益率 × '
+
   return (
     <div className="formula-form">
       <h3>{title}</h3>
+      {description && <p className="formula-description">{description}</p>}
       {formula.map((item, index) => (
         <div key={index} className="formula-item">
           <label>近</label>
@@ -58,7 +61,7 @@ export default function WeightedReturnFormulaForm({ title = '收益计算公式'
             onChange={(e) => handleDaysChange(index, e.target.value)}
             min="1"
           />
-          <span className="unit">日收益率 × </span>
+          <span className="unit">{rateLabel}</span>
           <input
             type="number"
             value={item.weight}

@@ -71,6 +71,18 @@ export default function App() {
         >
           加权收益排行
         </NavLink>
+        <NavLink
+          to="/weighted-rank-heatmap"
+          className={({ isActive }) => `nav-tab ${isActive ? 'active' : ''}`}
+        >
+          加权排行分热力图
+        </NavLink>
+        <NavLink
+          to="/weighted-rank"
+          className={({ isActive }) => `nav-tab ${isActive ? 'active' : ''}`}
+        >
+          加权排行分
+        </NavLink>
       </nav>
 
       <Outlet />

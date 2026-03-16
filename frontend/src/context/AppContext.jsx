@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { getInitStatus, calculateWeightedReturn, getWeightedReturnHeatmap, updateData, getUpdateStatus, cancelUpdate } from '../api'
+import { getInitStatus, calculateWeightedReturn, getWeightedReturnHeatmap, updateData, getUpdateStatus, cancelUpdate, calculateWeightedRank, getWeightedRankHeatmap } from '../api'
 
 const AppContext = createContext(null)
 
@@ -23,6 +23,17 @@ export function AppProvider({ children }) {
   const [heatmapDates, setHeatmapDates] = useState([])
   const [heatmapLoading, setHeatmapLoading] = useState(false)
   const [heatmapFormula, setHeatmapFormula] = useState(null)
+
+  // 加权排行分数据
+  const [weightedRankData, setWeightedRankData] = useState([])
+  const [weightedRankLoading, setWeightedRankLoading] = useState(false)
+  const [weightedRankFormula, setWeightedRankFormula] = useState(null)
+
+  // 加权排行分热力图数据
+  const [weightedRankHeatmapData, setWeightedRankHeatmapData] = useState({})
+  const [weightedRankHeatmapDates, setWeightedRankHeatmapDates] = useState([])
+  const [weightedRankHeatmapLoading, setWeightedRankHeatmapLoading] = useState(false)
+  const [weightedRankHeatmapFormula, setWeightedRankHeatmapFormula] = useState(null)
 
   // 错误信息
   const [error, setError] = useState(null)
@@ -74,6 +85,39 @@ export function AppProvider({ children }) {
       setError('获取热力图数据失败')
     }
     setHeatmapLoading(false)
+  }, [])
+
+  // 计算加权排行分数据
+  const fetchWeightedRank = useCallback(async (formula) => {
+    setWeightedRankLoading(true)
+    setWeightedRankFormula(formula)
+    try {
+      const result = await calculateWeightedRank(formula)
+      if (result.data) {
+        setWeightedRankData(result.data)
+      }
+    } catch (err) {
+      console.error('计算加权排行分失败:', err)
+      setError('获取加权排行分数据失败')
+    }
+    setWeightedRankLoading(false)
+  }, [])
+
+  // 计算加权排行分热力图数据
+  const fetchWeightedRankHeatmap = useCallback(async (formula, days = 10) => {
+    setWeightedRankHeatmapLoading(true)
+    setWeightedRankHeatmapFormula(formula)
+    try {
+      const result = await getWeightedRankHeatmap(formula, days)
+      if (result.data) {
+        setWeightedRankHeatmapData(result.data)
+        setWeightedRankHeatmapDates(result.dates || [])
+      }
+    } catch (err) {
+      console.error('计算加权排行分热力图失败:', err)
+      setError('获取加权排行分热力图数据失败')
+    }
+    setWeightedRankHeatmapLoading(false)
   }, [])
 
   // 处理数据更新
@@ -165,6 +209,19 @@ export function AppProvider({ children }) {
     heatmapLoading,
     heatmapFormula,
     fetchWeightedReturnHeatmap,
+
+    // 加权排行分
+    weightedRankData,
+    weightedRankLoading,
+    weightedRankFormula,
+    fetchWeightedRank,
+
+    // 加权排行分热力图
+    weightedRankHeatmapData,
+    weightedRankHeatmapDates,
+    weightedRankHeatmapLoading,
+    weightedRankHeatmapFormula,
+    fetchWeightedRankHeatmap,
 
     // 错误
     error,

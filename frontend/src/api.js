@@ -56,3 +56,25 @@ export async function getLatestDate() {
   const response = await fetch(`${BASE_URL}${API_BASE}/latest-date`)
   return response.json()
 }
+
+export async function calculateWeightedRank(formula, limit) {
+  const response = await fetch(`${BASE_URL}${API_BASE}/weighted-rank/calculate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ formula, limit })
+  })
+  return response.json()
+}
+
+export async function getWeightedRankHeatmap(formula, days = 10) {
+  const response = await fetch(`${BASE_URL}${API_BASE}/weighted-rank/heatmap`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ formula, days })
+  })
+  return response.json()
+}

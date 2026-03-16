@@ -10,6 +10,10 @@
 
 - **加权收益热力图**：展示最近10个交易日收益前10的股票分布
 - **加权收益排行**：展示当前收益排行，支持自定义计算公式
+- **加权排行分计算**：基于各周期收益率排行计算的加权排行分
+  - 公式格式：`近N日收益率排行 × 权重`
+  - 排行分越小表示收益越好
+- **加权排行分热力图**：展示最近10个交易日排行分前10的股票分布
 - **数据更新**：支持全量更新和增量更新股票数据
 
 ## 技术栈
@@ -119,7 +123,9 @@ npm run dev
 |------|------|------|
 | `/api/init-status` | GET | 获取系统初始化状态 |
 | `/api/weighted-return/calculate` | POST | 计算加权收益排行 |
-| `/api/weighted-return/heatmap` | POST | 获取热力图数据 |
+| `/api/weighted-return/heatmap` | POST | 获取加权收益热力图数据 |
+| `/api/weighted-rank/calculate` | POST | 计算加权排行分 |
+| `/api/weighted-rank/heatmap` | POST | 获取加权排行分热力图数据 |
 | `/api/update-data` | POST | 触发数据更新（异步） |
 | `/api/update-status` | GET | 获取更新任务状态 |
 | `/api/latest-date` | GET | 获取最新交易日期 |
