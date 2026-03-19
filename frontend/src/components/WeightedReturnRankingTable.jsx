@@ -20,6 +20,11 @@ export default function WeightedReturnRankingTable({ data, loading, formula }) {
     return `${percentage}%`
   }
 
+  const getEastMoneyUrl = (code) => {
+    const prefix = code.startsWith('6') ? 'sh' : 'sz'
+    return `https://quote.eastmoney.com/${prefix}${code}.html`
+  }
+
   return (
     <table className="stock-table">
       <thead>
@@ -38,7 +43,15 @@ export default function WeightedReturnRankingTable({ data, loading, formula }) {
           <tr key={stock.code}>
             <td>{index + 1}</td>
             <td className="stock-code">{stock.code}</td>
-            <td className="stock-name">{stock.name}</td>
+            <td className="stock-name">
+              <a
+                href={getEastMoneyUrl(stock.code)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {stock.name}
+              </a>
+            </td>
             <td
               className={stock.return_rate >= 0 ? 'return-positive' : 'return-negative'}
             >
