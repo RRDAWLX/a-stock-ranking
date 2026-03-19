@@ -159,7 +159,7 @@ def use_test_data():
     return generate_test_data()
 
 
-def fetch_all_stocks_daily_data(start_date, end_date):
+def fetch_all_stocks_daily_data(start_date, end_date, progress_callback=None):
     """获取所有股票的日线数据"""
     stock_codes = database.get_all_stock_codes()
     total = len(stock_codes)
@@ -171,6 +171,11 @@ def fetch_all_stocks_daily_data(start_date, end_date):
     for i, code in enumerate(stock_codes):
         if (i + 1) % 50 == 0:
             print(f"进度: {i + 1}/{total}")
+
+        # 每获取1只股票更新一次进度 (30% -> 99%)
+        if progress_callback:
+            progress = 30 + int((i + 1) / total * 69)
+            progress_callback(progress)
 
         try:
             data = fetch_stock_data(code, start_date, end_date)
@@ -213,7 +218,7 @@ def check_and_update_stock_names():
         return False
 
 
-def full_update():
+def full_update(progress_callback=None):
     """完整更新：先更新股票列表，再获取所有股票数据"""
     # 1. 更新股票列表
     if not init_stock_list():
@@ -231,7 +236,7 @@ def full_update():
     print(f"数据日期范围: {start_date} - {end_date}")
 
     # 3. 获取所有股票数据
-    if not fetch_all_stocks_daily_data(start_date, end_date):
+    if not fetch_all_stocks_daily_data(start_date, end_date, progress_callback):
         return False
 
     # 4. 更新元数据
@@ -241,7 +246,7 @@ def full_update():
     return True
 
 
-def incremental_update():
+def incremental_update(progress_callback=None):
     """增量更新：获取上次更新日期之后的新数据"""
     # 1. 检查并更新股票名称
     check_and_update_stock_names()
@@ -258,7 +263,7 @@ def incremental_update():
 
     # 如果没有上次更新，则获取60天数据
     if not last_update:
-        return full_update()
+        return full_update(progress_callback)
 
     # 找出需要更新的日期
     new_dates = [d for d in trade_dates if d > last_update]
@@ -272,7 +277,12 @@ def incremental_update():
     print(f"增量更新: {start_date} - {end_date}")
 
     # 4. 获取新数据
-    fetch_all_stocks_daily_data(start_date, end_date)
+    # 增量更新股票数量可能较少，使用 50-99% 的进度范围
+    def adjusted_callback(progress):
+        if progress_callback:
+            progress_callback(50 + int(progress - 30) * 0.69)
+
+    fetch_all_stocks_daily_data(start_date, end_date, adjusted_callback)
 
     # 5. 更新元数据
     database.update_metadata('last_update', end_date)

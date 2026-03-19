@@ -57,22 +57,35 @@ def calculate_weighted_return(stock_code, formula):
 def calculate_all_stocks(formula):
     """
     计算所有股票的加权收益
-    返回: [(stock_code, name, return_rate), ...]
+    返回: [(stock_code, name, return_rate, period_returns), ...]
+    period_returns: {days: return_rate, ...}
     """
     # 获取最近有数据的股票
     stock_codes = database.get_stocks_with_recent_data(30)
 
     results = []
     for code in stock_codes:
-        return_rate = calculate_weighted_return(code, formula)
-        if return_rate is not None:
+        # 计算各期限收益率
+        period_returns = {}
+        weighted_return = 0
+        total_weight = 0
+
+        for days, weight in formula:
+            return_rate = calculate_return_rate(code, days)
+            if return_rate is not None:
+                period_returns[str(days)] = return_rate
+                weighted_return += return_rate * weight
+                total_weight += weight
+
+        if total_weight > 0 and len(period_returns) == len(formula):
             # 获取股票名称
             stocks = database.get_stock_list()
             name = next((s['name'] for s in stocks if s['code'] == code), code)
             results.append({
                 'code': code,
                 'name': name,
-                'return_rate': return_rate
+                'return_rate': weighted_return,
+                'period_returns': period_returns
             })
 
     # 按收益率降序排列

@@ -42,7 +42,7 @@ export default function WeightedReturnRankingPage() {
             数据日期: {status.last_update}
           </div>
         )}
-        <WeightedReturnRankingTable data={rankingData} loading={rankingLoading} />
+        <WeightedReturnRankingTable data={rankingData} loading={rankingLoading} formula={rankingFormula} />
       </div>
     </div>
   )

@@ -21,6 +21,10 @@ def run_update_async(action):
     update_task['message'] = '开始更新...'
     update_task['error'] = None
 
+    # 创建进度回调函数
+    def update_progress(progress):
+        update_task['progress'] = progress
+
     try:
         if action == 'full':
             update_task['message'] = '正在获取股票列表...'
@@ -39,9 +43,8 @@ def run_update_async(action):
             start_date = trade_dates[0]
             end_date = trade_dates[-1]
             update_task['message'] = f'正在获取股票数据 ({start_date} - {end_date})...'
-            update_task['progress'] = 30
 
-            if not data_fetcher.fetch_all_stocks_daily_data(start_date, end_date):
+            if not data_fetcher.fetch_all_stocks_daily_data(start_date, end_date, update_progress):
                 update_task['error'] = '获取股票数据失败'
                 return
 
@@ -51,7 +54,7 @@ def run_update_async(action):
         else:
             update_task['message'] = '正在增量更新...'
             update_task['progress'] = 50
-            success = data_fetcher.incremental_update()
+            success = data_fetcher.incremental_update(update_progress)
             if success:
                 update_task['message'] = '增量更新完成'
                 update_task['progress'] = 100
