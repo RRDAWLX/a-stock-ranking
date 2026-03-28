@@ -15,13 +15,22 @@
   - 排行分越小表示收益越好
 - **加权排行分热力图**：展示最近10个交易日排行分前10的股票分布
 - **数据更新**：支持全量更新和增量更新股票数据
+  - 增量更新时自动补抓遗漏的数据
+  - 有历史数据的股票：获取缺失日期的数据
+  - 无历史数据的股票：获取最近60个交易日数据
+
+## 数据完整性展示
+
+- 状态栏实时显示数据不完整/无数据的股票数量
+- 各页面显示参与计算的股票数量
+- 最近更新日期自动从数据库动态获取
 
 ## 技术栈
 
 ### 后端
 - Python 3.9
 - Flask
-- SQLAlchemy
+- SQLite
 - akshare（A股数据获取）
 
 ### 前端
@@ -114,21 +123,22 @@ npm run dev
 │   └── package.json
 ├── config.json              # 端口配置
 ├── start.sh                 # 启动脚本
-└── CLAUDE.md                # 项目说明
+├── CLAUDE.md                # 项目说明
+└── data/                    # 数据目录（SQLite数据库）
 ```
 
 ## API 接口
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
-| `/api/init-status` | GET | 获取系统初始化状态 |
+| `/api/init-status` | GET | 获取系统初始化状态（含数据完整性信息） |
 | `/api/weighted-return/calculate` | POST | 计算加权收益排行 |
 | `/api/weighted-return/heatmap` | POST | 获取加权收益热力图数据 |
 | `/api/weighted-rank/calculate` | POST | 计算加权排行分 |
 | `/api/weighted-rank/heatmap` | POST | 获取加权排行分热力图数据 |
 | `/api/update-data` | POST | 触发数据更新（异步） |
 | `/api/update-status` | GET | 获取更新任务状态 |
-| `/api/latest-date` | GET | 获取最新交易日期 |
+| `/api/cancel-update` | POST | 取消更新任务 |
 
 ## 数据来源
 
