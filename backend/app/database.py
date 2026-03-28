@@ -52,14 +52,6 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_stock_date ON daily_data(stock_code, date)
         """)
 
-        # 元数据表 - 存储最新更新日期等
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS metadata (
-                key TEXT PRIMARY KEY,
-                value TEXT
-            )
-        """)
-
         conn.commit()
 
 
@@ -72,10 +64,8 @@ def get_init_status():
         cursor.execute("SELECT COUNT(*) as count FROM stocks")
         stock_count = cursor.fetchone()["count"]
 
-        # 获取最新更新日期
-        cursor.execute("SELECT value FROM metadata WHERE key = 'last_update'")
-        row = cursor.fetchone()
-        last_update = row["value"] if row else None
+        # 获取最新更新日期（从 daily_data 表中获取最近一个有数据的日期）
+        last_update = get_latest_trade_date()
 
         # 检查是否有数据
         has_data = stock_count > 0
@@ -94,6 +84,69 @@ def get_latest_trade_date():
         cursor.execute("SELECT MAX(date) as max_date FROM daily_data")
         row = cursor.fetchone()
         return row["max_date"] if row and row["max_date"] else None
+
+
+def get_stock_data_dates(stock_code):
+    """获取指定股票的所有日期"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT date FROM daily_data WHERE stock_code = ? ORDER BY date", (stock_code,))
+        return [row["date"] for row in cursor.fetchall()]
+
+
+def get_stock_latest_date(stock_code):
+    """获取指定股票在数据库中最近一个有数据的日期"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(date) as max_date FROM daily_data WHERE stock_code = ?", (stock_code,))
+        row = cursor.fetchone()
+        return row["max_date"] if row and row["max_date"] else None
+
+
+def get_data_completeness():
+    """获取数据完整性状态"""
+    latest_date = get_latest_trade_date()
+    if not latest_date:
+        return {
+            "total_stocks": 0,
+            "complete_stocks": 0,
+            "incomplete_stocks": 0,
+            "missing_stocks": 0,
+            "latest_date": None
+        }
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+
+        # 获取所有股票数量
+        cursor.execute("SELECT COUNT(*) as count FROM stocks")
+        total_stocks = cursor.fetchone()["count"]
+
+        # 获取数据完整的股票数量（最新日期等于系统最新日期）
+        cursor.execute("""
+            SELECT COUNT(DISTINCT stock_code) as count
+            FROM daily_data
+            WHERE date = ?
+        """, (latest_date,))
+        complete_stocks = cursor.fetchone()["count"]
+
+        # 获取没有数据的股票数量
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM stocks
+            WHERE code NOT IN (SELECT DISTINCT stock_code FROM daily_data)
+        """)
+        missing_stocks = cursor.fetchone()["count"]
+
+        # 数据不完整但有数据的股票数量
+        incomplete_stocks = total_stocks - complete_stocks - missing_stocks
+
+        return {
+            "total_stocks": total_stocks,
+            "complete_stocks": complete_stocks,
+            "incomplete_stocks": incomplete_stocks,
+            "missing_stocks": missing_stocks,
+            "latest_date": latest_date
+        }
 
 
 def get_stock_list():
@@ -165,18 +218,6 @@ def insert_daily_data(stock_code, date, close, adj_factor):
             INSERT OR REPLACE INTO daily_data (stock_code, date, close, adj_factor)
             VALUES (?, ?, ?, ?)
         """, (stock_code, date, close, adj_factor))
-        conn.commit()
-
-
-def update_metadata(key, value):
-    """更新元数据"""
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO metadata (key, value)
-            VALUES (?, ?)
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value
-        """, (key, value))
         conn.commit()
 
 

@@ -38,12 +38,20 @@ export default function App() {
             <div className="status-item">
               <span>最近更新: {status?.last_update || '-'}</span>
             </div>
+            {status?.initialized && (
+              <div className="status-item">
+                <span style={{ color: status?.incomplete_stocks > 0 ? '#e74c3c' : '#27ae60' }}>
+                  数据不完整: {status?.incomplete_stocks || 0}只
+                  {status?.missing_stocks > 0 && ` (无数据: ${status?.missing_stocks}只)`}
+                </span>
+              </div>
+            )}
             <button
               className="btn btn-primary"
               onClick={() => handleUpdate('full')}
               disabled={updating}
             >
-              {updating ? `${updateMessage} (${updateProgress}%)` : '更新数据'}
+              {updating ? `${updateMessage} (${updateProgress.toFixed(2)}%)` : '更新数据'}
             </button>
             {updating && (
               <button

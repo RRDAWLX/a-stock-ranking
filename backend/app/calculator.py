@@ -57,8 +57,10 @@ def calculate_weighted_return(stock_code, formula):
 def calculate_all_stocks(formula):
     """
     计算所有股票的加权收益
-    返回: [(stock_code, name, return_rate, period_returns), ...]
+    返回: (results, total_count)
+    results: [(stock_code, name, return_rate, period_returns), ...]
     period_returns: {days: return_rate, ...}
+    total_count: 参与计算的股票数量
     """
     # 获取最近有数据的股票
     stock_codes = database.get_stocks_with_recent_data(30)
@@ -90,7 +92,7 @@ def calculate_all_stocks(formula):
 
     # 按收益率降序排列
     results.sort(key=lambda x: x['return_rate'], reverse=True)
-    return results
+    return results, len(results)
 
 
 def calculate_ranking_by_date(formula, date):
@@ -98,23 +100,20 @@ def calculate_ranking_by_date(formula, date):
     计算指定日期的股票排行
     date: 交易日期
     """
+    # 找到最大周期
+    max_days = max([days for days, _ in formula]) if formula else 0
+    need_days = max_days + 1  # 需要的历史数据天数
+
     # 一次性获取所有股票名称
     stock_names = {}
     stocks = database.get_stock_list()
     for s in stocks:
         stock_names[s['code']] = s['name']
 
-    # 获取该日期有数据的所有股票
-    with database.get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT DISTINCT stock_code FROM daily_data
-            WHERE date = ?
-        """, [date])
+    # 获取最近30天有数据的股票（与 calculate_all_stocks 保持一致）
+    stock_codes = database.get_stocks_with_recent_data(30)
 
-        stock_codes = [row['stock_code'] for row in cursor.fetchall()]
-
-    # 优化：一次性获取所有股票在该日期之前的历史数据
+    # 预加载所有股票在该日期之前的历史数据
     history_data = {}
     with database.get_connection() as conn:
         cursor = conn.cursor()
@@ -128,21 +127,21 @@ def calculate_ranking_by_date(formula, date):
         current_data = []
         for row in cursor:
             if row['stock_code'] != current_code:
-                if current_code and len(current_data) >= 21:
-                    history_data[current_code] = current_data[-21:]
+                if current_code and len(current_data) >= need_days:
+                    history_data[current_code] = current_data[-need_days:]
                 current_code = row['stock_code']
                 current_data = []
             if row['close'] is not None:
                 current_data.append({'date': row['date'], 'close': row['close']})
 
-        if current_code and len(current_data) >= 21:
-            history_data[current_code] = current_data[-21:]
+        if current_code and len(current_data) >= need_days:
+            history_data[current_code] = current_data[-need_days:]
 
     # 计算收益
     results = []
     for code in stock_codes:
         data = history_data.get(code, [])
-        if len(data) < 21:
+        if len(data) < need_days:
             continue
 
         return_rate = calculate_weighted_return_with_data(data, formula)
@@ -191,7 +190,8 @@ def calculate_weighted_return_with_data(data, formula):
 def get_heatmap_data(formula, days=10):
     """
     获取热力图数据
-    返回: {date: [stock1, stock2, ...]} 每个日期收益前10的股票
+    返回: {date: {data: [stock1, stock2, ...], total_count: n}}
+    每个日期收益前10的股票，以及参与计算的股票数量
     """
     # 获取最近days个交易日期
     trade_dates = database.get_recent_trade_dates(days)
@@ -200,7 +200,11 @@ def get_heatmap_data(formula, days=10):
     for date in trade_dates:
         ranking = calculate_ranking_by_date(formula, date)
         # 取前10名
-        heatmap[date] = ranking[:10]
+        # 同时返回参与计算的股票数量（通过计算原始排行列表的长度）
+        heatmap[date] = {
+            'data': ranking[:10],
+            'total_count': len(ranking)
+        }
 
     return heatmap
 
@@ -215,13 +219,15 @@ def calculate_weighted_ranking_score(formula):
     计算加权收益排行分
     formula: [(days1, weight1), (days2, weight2), ...]
     例如: [(1, 0.5), (20, 0.5)]
-    返回: [(stock_code, name, ranking_score, rank_details), ...]
+    返回: (results, total_count)
+    results: [(stock_code, name, ranking_score, rank_details), ...]
     排行分越小越好
+    total_count: 参与计算的股票数量
     """
     # 获取最新交易日期
     latest_date = database.get_latest_trade_date()
     if not latest_date:
-        return []
+        return [], 0
 
     # 找到最大周期（需要获取足够的历史数据）
     max_days = max([days for days, _ in formula]) if formula else 0
@@ -229,7 +235,7 @@ def calculate_weighted_ranking_score(formula):
     # 获取该日期之前有足够历史数据的所有股票
     stock_codes = database.get_stocks_with_recent_data(max_days + 1)
     if not stock_codes:
-        return []
+        return [], 0
 
     # 一次性获取所有股票名称
     stock_names = {}
@@ -336,7 +342,7 @@ def calculate_weighted_ranking_score(formula):
     # 按排行分升序排列（排行分越小越好）
     results.sort(key=lambda x: x['ranking_score'])
 
-    return results
+    return results, len(results)
 
 
 def calculate_weighted_ranking_score_by_date(formula, date):
@@ -347,15 +353,10 @@ def calculate_weighted_ranking_score_by_date(formula, date):
     """
     # 找到最大周期
     max_days = max([days for days, _ in formula]) if formula else 0
+    need_days = max_days + 1
 
-    # 获取该日期之前有足够历史数据的所有股票
-    with database.get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT DISTINCT stock_code FROM daily_data
-            WHERE date = ?
-        """, [date])
-        stock_codes = [row['stock_code'] for row in cursor.fetchall()]
+    # 获取最近30天有数据的股票（与 calculate_weighted_ranking_score 保持一致）
+    stock_codes = database.get_stocks_with_recent_data(30)
 
     if not stock_codes:
         return []
@@ -380,21 +381,21 @@ def calculate_weighted_ranking_score_by_date(formula, date):
         current_data = []
         for row in cursor:
             if row['stock_code'] != current_code:
-                if current_code and len(current_data) >= max_days + 1:
-                    history_data[current_code] = current_data[-(max_days + 1):]
+                if current_code and len(current_data) >= need_days:
+                    history_data[current_code] = current_data[-need_days:]
                 current_code = row['stock_code']
                 current_data = []
             if row['close'] is not None:
                 current_data.append({'date': row['date'], 'close': row['close']})
 
-        if current_code and len(current_data) >= max_days + 1:
-            history_data[current_code] = current_data[-(max_days + 1):]
+        if current_code and len(current_data) >= need_days:
+            history_data[current_code] = current_data[-need_days:]
 
     # 计算每只股票在各周期的收益率
     stock_returns = {}
     for code in stock_codes:
         data = history_data.get(code, [])
-        if len(data) < max_days + 1:
+        if len(data) < need_days:
             continue
 
         returns = {}
@@ -467,7 +468,8 @@ def calculate_weighted_ranking_score_by_date(formula, date):
 def get_weighted_rank_heatmap_data(formula, days=10):
     """
     获取加权排行分热力图数据
-    返回: {date: [stock1, stock2, ...]} 每个日期排行分前10的股票
+    返回: {date: {data: [stock1, stock2, ...], total_count: n}}
+    每个日期排行分前10的股票，以及参与计算的股票数量
     """
     # 获取最近days个交易日期
     trade_dates = database.get_recent_trade_dates(days)
@@ -476,6 +478,9 @@ def get_weighted_rank_heatmap_data(formula, days=10):
     for date in trade_dates:
         ranking = calculate_weighted_ranking_score_by_date(formula, date)
         # 取前10名（排行分越小越好）
-        heatmap[date] = ranking[:10]
+        heatmap[date] = {
+            'data': ranking[:10],
+            'total_count': len(ranking)
+        }
 
     return heatmap

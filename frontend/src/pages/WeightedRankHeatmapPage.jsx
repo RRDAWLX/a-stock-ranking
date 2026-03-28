@@ -15,6 +15,7 @@ export default function WeightedRankHeatmapPage() {
     weightedRankHeatmapDates,
     weightedRankHeatmapLoading,
     weightedRankHeatmapFormula,
+    weightedRankHeatmapTotalCount,
     fetchWeightedRankHeatmap,
     status
   } = useApp()
@@ -40,6 +41,11 @@ export default function WeightedRankHeatmapPage() {
           onCalculate={handleCalculate}
           showRank={true}
         />
+        {status?.last_update && (
+          <div className="info-banner">
+            数据日期: {status.last_update} | 参与计算: {weightedRankHeatmapTotalCount}只股票
+          </div>
+        )}
         <WeightedRankHeatmap
           data={weightedRankHeatmapData}
           dates={weightedRankHeatmapDates}

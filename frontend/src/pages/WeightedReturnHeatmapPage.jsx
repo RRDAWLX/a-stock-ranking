@@ -15,6 +15,7 @@ export default function WeightedReturnHeatmapPage() {
     heatmapDates,
     heatmapLoading,
     heatmapFormula,
+    heatmapTotalCount,
     fetchWeightedReturnHeatmap,
     status
   } = useApp()
@@ -38,6 +39,11 @@ export default function WeightedReturnHeatmapPage() {
           initialFormula={heatmapFormula || DEFAULT_FORMULA}
           onCalculate={handleCalculate}
         />
+        {status?.last_update && (
+          <div className="info-banner">
+            数据日期: {status.last_update} | 参与计算: {heatmapTotalCount}只股票
+          </div>
+        )}
         <WeightedReturnHeatmap data={heatmapData} dates={heatmapDates} loading={heatmapLoading} />
       </div>
     </div>

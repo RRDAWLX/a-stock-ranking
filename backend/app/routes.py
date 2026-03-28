@@ -46,9 +46,12 @@ def run_update_async(action):
 
             if not data_fetcher.fetch_all_stocks_daily_data(start_date, end_date, update_progress):
                 update_task['error'] = '获取股票数据失败'
+
+            # last_update 现在直接从 daily_data 表获取，不需要更新 metadata
+
+            if update_task['error']:
                 return
 
-            database.update_metadata('last_update', end_date)
             update_task['message'] = '数据更新完成'
             update_task['progress'] = 100
         else:
@@ -56,6 +59,7 @@ def run_update_async(action):
             update_task['progress'] = 50
             success = data_fetcher.incremental_update(update_progress)
             if success:
+                # last_update 现在直接从 daily_data 表获取，不需要更新 metadata
                 update_task['message'] = '增量更新完成'
                 update_task['progress'] = 100
             else:
@@ -70,7 +74,17 @@ def run_update_async(action):
 def init_status():
     """获取初始化状态"""
     status = database.get_init_status()
+    # 添加数据完整性信息
+    completeness = database.get_data_completeness()
+    status.update(completeness)
     return jsonify(status)
+
+
+@api.route('/api/data-completeness', methods=['GET'])
+def get_data_completeness():
+    """获取数据完整性状态"""
+    completeness = database.get_data_completeness()
+    return jsonify(completeness)
 
 
 @api.route('/api/weighted-return/calculate', methods=['POST'])
@@ -98,7 +112,7 @@ def calculate_weighted_return():
     limit = data.get('limit')
 
     # 计算所有股票收益
-    results = calculator.calculate_all_stocks(formula)
+    results, total_count = calculator.calculate_all_stocks(formula)
 
     # 如果指定了limit
     if limit:
@@ -107,6 +121,7 @@ def calculate_weighted_return():
     return jsonify({
         'formula': formula_spec,
         'total': len(results),
+        'total_count': total_count,
         'data': results
     })
 
@@ -130,10 +145,18 @@ def get_weighted_return_heatmap():
 
     heatmap_data = calculator.get_heatmap_data(formula, days)
 
+    # 获取最新日期的参与股票数量
+    dates = list(heatmap_data.keys())
+    total_count = heatmap_data[dates[-1]]['total_count'] if dates else 0
+
+    # 转换数据格式，保持向后兼容
+    data = {date: item['data'] for date, item in heatmap_data.items()}
+
     return jsonify({
         'formula': formula_spec,
-        'dates': list(heatmap_data.keys()),
-        'data': heatmap_data
+        'dates': dates,
+        'total_count': total_count,
+        'data': data
     })
 
 
@@ -242,7 +265,7 @@ def calculate_weighted_rank():
     limit = data.get('limit')
 
     # 计算所有股票加权排行分
-    results = calculator.calculate_weighted_ranking_score(formula)
+    results, total_count = calculator.calculate_weighted_ranking_score(formula)
 
     # 如果指定了limit
     if limit:
@@ -251,6 +274,7 @@ def calculate_weighted_rank():
     return jsonify({
         'formula': formula_spec,
         'total': len(results),
+        'total_count': total_count,
         'data': results
     })
 
@@ -274,8 +298,16 @@ def get_weighted_rank_heatmap():
 
     heatmap_data = calculator.get_weighted_rank_heatmap_data(formula, days)
 
+    # 获取最新日期的参与股票数量
+    dates = list(heatmap_data.keys())
+    total_count = heatmap_data[dates[-1]]['total_count'] if dates else 0
+
+    # 转换数据格式，保持向后兼容
+    data = {date: item['data'] for date, item in heatmap_data.items()}
+
     return jsonify({
         'formula': formula_spec,
-        'dates': list(heatmap_data.keys()),
-        'data': heatmap_data
+        'dates': dates,
+        'total_count': total_count,
+        'data': data
     })

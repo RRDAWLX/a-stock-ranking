@@ -17,23 +17,27 @@ export function AppProvider({ children }) {
   const [rankingData, setRankingData] = useState([])
   const [rankingLoading, setRankingLoading] = useState(false)
   const [rankingFormula, setRankingFormula] = useState(null)
+  const [rankingTotalCount, setRankingTotalCount] = useState(0)
 
   // 热力图数据
   const [heatmapData, setHeatmapData] = useState({})
   const [heatmapDates, setHeatmapDates] = useState([])
   const [heatmapLoading, setHeatmapLoading] = useState(false)
   const [heatmapFormula, setHeatmapFormula] = useState(null)
+  const [heatmapTotalCount, setHeatmapTotalCount] = useState(0)
 
   // 加权排行分数据
   const [weightedRankData, setWeightedRankData] = useState([])
   const [weightedRankLoading, setWeightedRankLoading] = useState(false)
   const [weightedRankFormula, setWeightedRankFormula] = useState(null)
+  const [weightedRankTotalCount, setWeightedRankTotalCount] = useState(0)
 
   // 加权排行分热力图数据
   const [weightedRankHeatmapData, setWeightedRankHeatmapData] = useState({})
   const [weightedRankHeatmapDates, setWeightedRankHeatmapDates] = useState([])
   const [weightedRankHeatmapLoading, setWeightedRankHeatmapLoading] = useState(false)
   const [weightedRankHeatmapFormula, setWeightedRankHeatmapFormula] = useState(null)
+  const [weightedRankHeatmapTotalCount, setWeightedRankHeatmapTotalCount] = useState(0)
 
   // 错误信息
   const [error, setError] = useState(null)
@@ -62,6 +66,7 @@ export function AppProvider({ children }) {
       const result = await calculateWeightedReturn(formula)
       if (result.data) {
         setRankingData(result.data)
+        setRankingTotalCount(result.total_count || 0)
       }
     } catch (err) {
       console.error('计算失败:', err)
@@ -79,6 +84,7 @@ export function AppProvider({ children }) {
       if (result.data) {
         setHeatmapData(result.data)
         setHeatmapDates(result.dates || [])
+        setHeatmapTotalCount(result.total_count || 0)
       }
     } catch (err) {
       console.error('计算热力图失败:', err)
@@ -95,6 +101,7 @@ export function AppProvider({ children }) {
       const result = await calculateWeightedRank(formula)
       if (result.data) {
         setWeightedRankData(result.data)
+        setWeightedRankTotalCount(result.total_count || 0)
       }
     } catch (err) {
       console.error('计算加权排行分失败:', err)
@@ -112,6 +119,7 @@ export function AppProvider({ children }) {
       if (result.data) {
         setWeightedRankHeatmapData(result.data)
         setWeightedRankHeatmapDates(result.dates || [])
+        setWeightedRankHeatmapTotalCount(result.total_count || 0)
       }
     } catch (err) {
       console.error('计算加权排行分热力图失败:', err)
@@ -201,6 +209,7 @@ export function AppProvider({ children }) {
     rankingData,
     rankingLoading,
     rankingFormula,
+    rankingTotalCount,
     fetchWeightedReturnRanking,
 
     // 加权收益热力图
@@ -208,12 +217,14 @@ export function AppProvider({ children }) {
     heatmapDates,
     heatmapLoading,
     heatmapFormula,
+    heatmapTotalCount,
     fetchWeightedReturnHeatmap,
 
     // 加权排行分
     weightedRankData,
     weightedRankLoading,
     weightedRankFormula,
+    weightedRankTotalCount,
     fetchWeightedRank,
 
     // 加权排行分热力图
@@ -221,6 +232,7 @@ export function AppProvider({ children }) {
     weightedRankHeatmapDates,
     weightedRankHeatmapLoading,
     weightedRankHeatmapFormula,
+    weightedRankHeatmapTotalCount,
     fetchWeightedRankHeatmap,
 
     // 错误

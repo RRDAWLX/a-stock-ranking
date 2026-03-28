@@ -14,6 +14,7 @@ export default function WeightedRankPage() {
     weightedRankData,
     weightedRankLoading,
     weightedRankFormula,
+    weightedRankTotalCount,
     fetchWeightedRank,
     status
   } = useApp()
@@ -41,7 +42,7 @@ export default function WeightedRankPage() {
         />
         {status?.last_update && (
           <div className="info-banner">
-            数据日期: {status.last_update}
+            数据日期: {status.last_update} | 参与计算: {weightedRankTotalCount}只股票
           </div>
         )}
         <WeightedRankTable data={weightedRankData} loading={weightedRankLoading} formula={weightedRankFormula} />
