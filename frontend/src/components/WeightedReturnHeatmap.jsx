@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { getStockUrl } from '../utils/stockUrl'
 
 // 预设颜色列表，确保相邻颜色有明显差异
 const colorPalette = [
@@ -112,6 +113,7 @@ export default function WeightedReturnHeatmap({ data, dates, loading }) {
                     style={{ backgroundColor: bgColor }}
                     onMouseEnter={() => setHoveredStock(stock.code)}
                     onMouseLeave={() => setHoveredStock(null)}
+                    onClick={() => window.open(getStockUrl(stock.code), '_blank')}
                   >
                     <div className="stock-rank">#{index + 1}</div>
                     <div className="stock-info">

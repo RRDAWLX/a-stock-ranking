@@ -1,4 +1,5 @@
 import React from 'react'
+import { getStockUrl } from '../utils/stockUrl'
 
 export default function WeightedReturnRankingTable({ data, loading, formula }) {
   if (loading) {
@@ -18,11 +19,6 @@ export default function WeightedReturnRankingTable({ data, loading, formula }) {
     if (rate === null || rate === undefined) return '-'
     const percentage = (rate * 100).toFixed(2)
     return `${percentage}%`
-  }
-
-  const getEastMoneyUrl = (code) => {
-    const prefix = code.startsWith('6') ? 'sh' : 'sz'
-    return `https://quote.eastmoney.com/${prefix}${code}.html`
   }
 
   return (
@@ -45,7 +41,7 @@ export default function WeightedReturnRankingTable({ data, loading, formula }) {
             <td className="stock-code">{stock.code}</td>
             <td className="stock-name">
               <a
-                href={getEastMoneyUrl(stock.code)}
+                href={getStockUrl(stock.code)}
                 target="_blank"
                 rel="noopener noreferrer"
               >

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { getStockUrl } from '../utils/stockUrl'
 
 // 预设颜色列表
 const colorPalette = [
@@ -45,15 +46,6 @@ function adjustColorBrightness(hexColor, rankingScore, maxScore = 100) {
 function formatDate(dateStr) {
   const date = new Date(dateStr)
   return `${date.getMonth() + 1}-${date.getDate()}`
-}
-
-// 生成东方财富网股票详情页URL
-const getStockUrl = (code) => {
-  if (code.startsWith('6')) {
-    return `https://quote.eastmoney.com/sh${code}.html`
-  } else {
-    return `https://quote.eastmoney.com/sz${code}.html`
-  }
 }
 
 export default function WeightedRankHeatmap({ data, dates, loading, formula }) {
@@ -124,14 +116,11 @@ export default function WeightedRankHeatmap({ data, dates, loading, formula }) {
                     style={{ backgroundColor: bgColor }}
                     onMouseEnter={() => setHoveredStock(stock.code)}
                     onMouseLeave={() => setHoveredStock(null)}
+                    onClick={() => window.open(getStockUrl(stock.code), '_blank')}
                   >
                     <div className="stock-rank">#{index + 1}</div>
                     <div className="stock-info">
-                      <div className="stock-name">
-                        <a href={getStockUrl(stock.code)} target="_blank" rel="noopener noreferrer">
-                          {stock.name}
-                        </a>
-                      </div>
+                      <div className="stock-name">{stock.name}</div>
                       <div className="stock-code">{stock.code}</div>
                     </div>
                     <div className="stock-return">

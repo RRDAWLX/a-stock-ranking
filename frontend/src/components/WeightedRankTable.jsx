@@ -1,13 +1,5 @@
 import React from 'react'
-
-// 生成东方财富网股票详情页URL
-const getStockUrl = (code) => {
-  if (code.startsWith('6')) {
-    return `https://quote.eastmoney.com/sh${code}.html`
-  } else {
-    return `https://quote.eastmoney.com/sz${code}.html`
-  }
-}
+import { getStockUrl } from '../utils/stockUrl'
 
 export default function WeightedRankTable({ data, loading, formula }) {
   if (loading) {
