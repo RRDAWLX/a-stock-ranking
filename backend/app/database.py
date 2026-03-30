@@ -196,6 +196,31 @@ def get_all_stock_codes():
         return [row["code"] for row in cursor.fetchall()]
 
 
+def get_all_stock_latest_dates():
+    """一次性获取所有股票的最新日期"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT d.stock_code, MAX(d.date) as max_date
+            FROM daily_data d
+            GROUP BY d.stock_code
+        """)
+        return {row["stock_code"]: row["max_date"] for row in cursor.fetchall()}
+
+
+def insert_daily_data_batch(data_list):
+    """批量插入每日行情数据"""
+    if not data_list:
+        return
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.executemany("""
+            INSERT OR REPLACE INTO daily_data (stock_code, date, close, adj_factor)
+            VALUES (?, ?, ?, ?)
+        """, data_list)
+        conn.commit()
+
+
 def upsert_stock(code, name, list_date=None):
     """插入或更新股票信息"""
     with get_connection() as conn:

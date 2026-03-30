@@ -13,7 +13,7 @@ update_task = {
 }
 
 
-def run_update_async(action):
+def run_update_async():
     """异步执行数据更新"""
     global update_task
     update_task['running'] = True
@@ -26,44 +26,14 @@ def run_update_async(action):
         update_task['progress'] = progress
 
     try:
-        if action == 'full':
-            update_task['message'] = '正在获取股票列表...'
-            update_task['progress'] = 10
-            if not data_fetcher.init_stock_list():
-                update_task['error'] = '获取股票列表失败'
-                return
-
-            update_task['message'] = '正在获取交易日历...'
-            update_task['progress'] = 20
-            trade_dates = data_fetcher.get_recent_trade_dates_akshare(60)
-            if not trade_dates:
-                update_task['error'] = '无法获取交易日历'
-                return
-
-            start_date = trade_dates[0]
-            end_date = trade_dates[-1]
-            update_task['message'] = f'正在获取股票数据 ({start_date} - {end_date})...'
-
-            if not data_fetcher.fetch_all_stocks_daily_data(start_date, end_date, update_progress):
-                update_task['error'] = '获取股票数据失败'
-
-            # last_update 现在直接从 daily_data 表获取，不需要更新 metadata
-
-            if update_task['error']:
-                return
-
-            update_task['message'] = '数据更新完成'
+        update_task['message'] = '正在更新...'
+        update_task['progress'] = 50
+        success = data_fetcher.incremental_update(update_progress)
+        if success:
+            update_task['message'] = '更新完成'
             update_task['progress'] = 100
         else:
-            update_task['message'] = '正在增量更新...'
-            update_task['progress'] = 50
-            success = data_fetcher.incremental_update(update_progress)
-            if success:
-                # last_update 现在直接从 daily_data 表获取，不需要更新 metadata
-                update_task['message'] = '增量更新完成'
-                update_task['progress'] = 100
-            else:
-                update_task['error'] = '增量更新失败'
+            update_task['error'] = '更新失败'
     except Exception as e:
         update_task['error'] = str(e)
     finally:
@@ -171,33 +141,8 @@ def update_data():
             'message': '已有更新任务在运行中'
         }), 400
 
-    json_data = request.get_json()
-    action = json_data.get('action', 'incremental') if json_data else 'incremental'
-
-    # 测试数据模式（同步执行，较快）
-    if action == 'test':
-        try:
-            success = data_fetcher.use_test_data()
-            if success:
-                status = database.get_init_status()
-                return jsonify({
-                    'success': True,
-                    'message': '测试数据生成成功',
-                    'status': status
-                })
-            else:
-                return jsonify({
-                    'success': False,
-                    'message': '测试数据生成失败'
-                }), 500
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'message': f'测试数据生成失败: {str(e)}'
-            }), 500
-
     # 启动异步更新任务
-    thread = threading.Thread(target=run_update_async, args=(action,))
+    thread = threading.Thread(target=run_update_async)
     thread.start()
 
     return jsonify({

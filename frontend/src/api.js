@@ -29,13 +29,12 @@ export async function getWeightedReturnHeatmap(formula, days = 10) {
   return response.json()
 }
 
-export async function updateData(action = 'incremental') {
+export async function updateData() {
   const response = await fetch(`${BASE_URL}${API_BASE}/update-data`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ action })
+    }
   })
   return response.json()
 }

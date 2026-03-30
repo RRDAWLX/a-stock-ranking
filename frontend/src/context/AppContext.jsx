@@ -129,14 +129,14 @@ export function AppProvider({ children }) {
   }, [])
 
   // 处理数据更新
-  const handleUpdate = useCallback(async (action = 'incremental') => {
+  const handleUpdate = useCallback(async () => {
     setUpdating(true)
     setError(null)
     setUpdateProgress(0)
     setUpdateMessage('正在启动更新...')
 
     try {
-      const result = await updateData(action)
+      const result = await updateData()
       if (result.success && result.async) {
         pollUpdateStatus()
       } else if (result.success) {

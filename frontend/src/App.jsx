@@ -48,7 +48,7 @@ export default function App() {
             )}
             <button
               className="btn btn-primary"
-              onClick={() => handleUpdate('full')}
+              onClick={handleUpdate}
               disabled={updating}
             >
               {updating ? `${updateMessage} (${updateProgress.toFixed(2)}%)` : '更新数据'}

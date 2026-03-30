@@ -129,28 +129,55 @@ def fetch_stock_data(stock_code, start_date=None, end_date=None):
     return []
 
 
+# 交易日历缓存
+_trade_dates_cache = None
+_trade_dates_cache_time = 0
+CACHE_EXPIRE_SECONDS = 3600  # 缓存有效期1小时
+
+
 def get_recent_trade_dates_akshare(days=60):
-    """使用akshare获取最近n个交易日"""
+    """使用akshare获取最近n个交易日（缓存1小时）"""
+    global _trade_dates_cache, _trade_dates_cache_time
+
+    current_time = time.time()
+
+    # 检查缓存是否有效（未过期）
+    if _trade_dates_cache is not None and (current_time - _trade_dates_cache_time) < CACHE_EXPIRE_SECONDS:
+        return _trade_dates_cache[:days] if days <= len(_trade_dates_cache) else _trade_dates_cache
+
+    # 缓存过期，重新获取
+    old_cache = _trade_dates_cache  # 保留旧缓存以便失败时使用
+
     for retry in range(3):
         try:
-            # 添加请求间隔
             if retry > 0:
                 time.sleep(random.uniform(1, 3))
 
-            # 获取上证指数历史数据来获取交易日历
             index_df = ak.stock_zh_index_daily(symbol="sh000001")
             if index_df is None or index_df.empty:
-                return []
+                break  # 尝试使用旧缓存
 
-            # 按日期降序排列，取前days个
-            dates = index_df['date'].tail(days).tolist()
-            # 转换为字符串格式
-            return [str(d) for d in sorted(dates)]
+            # 按日期降序排列，取最近300个
+            dates = index_df['date'].tail(300).tolist()
+            # 降序变升序：先 reverse 再转日期排序
+            all_dates = tuple(str(d) for d in sorted(dates))
+
+            # 更新缓存
+            _trade_dates_cache = all_dates
+            _trade_dates_cache_time = current_time
+
+            # 取最后 days 个（即最近的 days 个）
+            return all_dates[-days:] if days <= len(all_dates) else all_dates
         except Exception as e:
             print(f"获取交易日历失败 (尝试 {retry+1}/3): {e}")
             if retry < 2:
                 time.sleep(2)
-    return []
+
+    # 获取失败，返回旧缓存（如果有）
+    if old_cache is not None:
+        return old_cache[-days:] if days <= len(old_cache) else old_cache
+
+    return ()
 
 
 def init_stock_list():
@@ -369,16 +396,17 @@ def full_update(progress_callback=None):
 
 
 def incremental_update(progress_callback=None):
-    """增量更新：为每只股票单独获取缺失的数据"""
+    """更新数据：为每只股票单独获取缺失的数据"""
     # 1. 检查并更新股票名称
     check_and_update_stock_names()
 
-    # 2. 获取最新的交易日
-    trade_dates = get_recent_trade_dates_akshare(5)
+    # 2. 获取最新的交易日（同时获取60天用于新股票）
+    trade_dates = get_recent_trade_dates_akshare(60)
     if not trade_dates:
         print("无法获取交易日历")
         return False
-    end_date = trade_dates[-1]
+    latest_date = trade_dates[-1]
+    start_date_60 = trade_dates[0]
 
     # 3. 检查系统是否已有数据
     system_latest = database.get_latest_trade_date()
@@ -386,71 +414,62 @@ def incremental_update(progress_callback=None):
         # 没有数据，执行完整更新
         return full_update(progress_callback)
 
-    # 检查是否有新数据
-    new_trade_dates = [d for d in trade_dates if d > system_latest]
-    if not new_trade_dates:
-        print("没有新数据需要更新...")
+    print(f"最新交易日: {latest_date}, 数据库最新: {system_latest}")
+
+    # 4. 一次性获取所有股票的最新日期（避免逐个查询）
+    stock_latest_dates = database.get_all_stock_latest_dates()
+
+    # 5. 收集需要更新的股票和获取范围
+    stocks_to_update = []
+    for code, stock_latest in stock_latest_dates.items():
+        if stock_latest >= latest_date:
+            # 已有最新日期的数据，跳过
+            continue
+        # 需要更新
+        stocks_to_update.append((code, stock_latest, latest_date))
+
+    # 6. 检查没有历史数据的股票（从 stocks 表中获取）
+    stocks_with_data = set(stock_latest_dates.keys())
+    all_stock_codes = database.get_all_stock_codes()
+    stocks_without_data = [code for code in all_stock_codes if code not in stocks_with_data]
+
+    for code in stocks_without_data:
+        stocks_to_update.append((code, start_date_60, latest_date))
+
+    need_update_count = len(stocks_to_update)
+    print(f"需要更新 {need_update_count} 只股票")
+
+    if need_update_count == 0:
+        print("所有股票已是最新数据")
         return True
 
-    start_date = new_trade_dates[0]
-    print(f"增量更新: {start_date} - {end_date}")
-
-    # 4. 获取所有股票列表
-    stock_codes = database.get_all_stock_codes()
-    total = len(stock_codes)
     success = 0
     failed = 0
-    no_data_count = 0  # 没有历史数据的股票数量
 
-    # 5. 逐只股票获取数据
-    for i, code in enumerate(stock_codes):
+    # 7. 逐只股票获取数据
+    for i, (code, fetch_start, fetch_end) in enumerate(stocks_to_update):
         if (i + 1) % 100 == 0:
-            print(f"进度: {i + 1}/{total}")
+            print(f"进度: {i + 1}/{need_update_count}")
 
         # 更新进度 (50% -> 99%)
         if progress_callback:
-            progress = 50 + (i + 1) / total * 49
+            progress = 50 + (i + 1) / need_update_count * 49
             progress_callback(round(progress, 2))
-
-        # 获取该股票在数据库中最近一个有数据的日期
-        stock_latest = database.get_stock_latest_date(code)
-
-        if stock_latest:
-            # 有历史数据：从最近日期（不含）到最新日期
-            stock_start = None  # 让 API 自动处理
-            stock_end = end_date
-        else:
-            # 没有历史数据：获取最近60个交易日
-            no_data_count += 1
-            recent_60_dates = get_recent_trade_dates_akshare(60)
-            if recent_60_dates:
-                stock_start = recent_60_dates[0]
-                stock_end = recent_60_dates[-1]
-            else:
-                continue
 
         # 添加请求间隔，避免触发限流
         if i > 0:
             time.sleep(random.uniform(0.3, 1.0))
 
         try:
-            # 确定获取范围
-            if stock_latest:
-                # 有数据：从数据库最新日期的下一个交易日起
-                # 找出 stock_latest 在 new_trade_dates 中的下一个位置
-                fetch_start = stock_latest
-            else:
-                # 无数据：使用60天
-                fetch_start = stock_start
-                fetch_end = stock_end
-
             data = fetch_stock_data(code, fetch_start, fetch_end)
             if data:
-                for item in data:
-                    if item['close'] is not None:
-                        database.insert_daily_data(
-                            code, item['date'], item['close'], item['adj_factor']
-                        )
+                # 批量插入数据
+                insert_data = [
+                    (code, item['date'], item['close'], item['adj_factor'])
+                    for item in data if item['close'] is not None
+                ]
+                if insert_data:
+                    database.insert_daily_data_batch(insert_data)
                 success += 1
             else:
                 failed += 1
@@ -459,5 +478,5 @@ def incremental_update(progress_callback=None):
             if failed <= 5:
                 print(f"获取 {code} 数据失败: {e}")
 
-    print(f"增量更新完成! 成功: {success}, 失败: {failed}, 无历史数据: {no_data_count}")
+    print(f"数据更新完成! 成功: {success}, 失败: {failed}")
     return True
