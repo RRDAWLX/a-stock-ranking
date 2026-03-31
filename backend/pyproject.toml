@@ -1,0 +1,16 @@
+[project]
+name = "a-stock-ranking-backend"
+version = "1.0.0"
+description = "A股股票收益排行系统后端"
+requires-python = ">=3.9"
+dependencies = [
+    "flask==3.1.3",
+    "flask-cors==6.0.2",
+    "akshare==1.18.49",
+    "sqlalchemy==2.0.48",
+    "pandas==2.3.3",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
