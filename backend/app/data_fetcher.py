@@ -7,28 +7,55 @@ from app import database
 
 
 # ========== 历史数据接口配置 ==========
-def get_history_interfaces():
-    """定义可用的历史数据接口，按优先级排序"""
-    return [
+def get_history_interfaces(stock_code=None):
+    """定义可用的历史数据接口，按优先级排序
+
+    Args:
+        stock_code: 股票代码，用于判断是否是北交所股票
+                   北交所股票(83/87/88开头)只使用东财接口，腾讯接口不支持
+    """
+    interfaces = [
         {
             'name': 'stock_zh_a_hist',
-            'func': lambda code: ak.stock_zh_a_hist(symbol=code, period="daily", adjust="qfq"),
+            'func': lambda code, start, end: ak.stock_zh_a_hist(
+                symbol=code, period="daily", start_date=start, end_date=end, adjust="qfq"
+            ),
             'date_col': '日期',
             'close_col': '收盘',
-        },
-        {
-            'name': 'stock_zh_a_hist_em',
-            'func': lambda code: ak.stock_zh_a_hist_em(symbol=code, period="daily", adjust="qfq"),
-            'date_col': '日期',
-            'close_col': '收盘',
-        },
-        {
-            'name': 'stock_zh_a_hist_sina',
-            'func': lambda code: ak.stock_zh_a_hist_sina(symbol=code),
-            'date_col': 'date',
-            'close_col': 'close',
         },
     ]
+
+    # 北交所股票(83/87/88开头)只使用东财接口，腾讯接口不支持北交所
+    if stock_code and (stock_code.startswith('83') or stock_code.startswith('87') or stock_code.startswith('88')):
+        return interfaces
+
+    # 非北交所股票，添加腾讯接口作为备用
+    interfaces.append({
+        'name': 'stock_zh_a_hist_tx',
+        'func': lambda code, start, end: ak.stock_zh_a_hist_tx(
+            symbol=_add_market_prefix(code), start_date=start, end_date=end, adjust="qfq"
+        ),
+        'date_col': 'date',
+        'close_col': 'close',
+    })
+
+    return interfaces
+
+
+def _add_market_prefix(code):
+    """为股票代码添加市场标识 (腾讯接口需要)
+
+    市场标识:
+    - 6 开头: 沪市 (sh)
+    - 83/87/88 开头: 北交所 (bj) - 注意: 腾讯接口不支持北交所，此函数仅用于代码转换
+    - 其他: 深市 (sz)，包括创业板(30)、主板(00/002/003)
+    """
+    if code.startswith('6'):
+        return f'sh{code}'
+    elif code.startswith('83') or code.startswith('87') or code.startswith('88'):
+        return f'bj{code}'
+    else:
+        return f'sz{code}'
 
 
 def is_rate_limit_error(e):
@@ -69,21 +96,30 @@ def parse_interface_data(df, interface_info):
 
 
 def fetch_stock_data(stock_code, start_date=None, end_date=None):
-    """获取单只股票的历史数据（前复权），支持接口自动切换"""
-    interfaces = get_history_interfaces()
-    last_error = None
+    """获取单只股票的历史数据（前复权），支持接口自动切换
+
+    Args:
+        stock_code: 股票代码 (不带市场标识)
+        start_date: 开始日期 (YYYY-MM-DD 格式)
+        end_date: 结束日期 (YYYY-MM-DD 格式)
+    """
+    # 转换日期格式为 YYYYMMDD (akshare 接口需要)
+    start_str = start_date.replace('-', '') if start_date else '19000101'
+    end_str = end_date.replace('-', '') if end_date else '20500101'
+
+    interfaces = get_history_interfaces(stock_code)
 
     for interface in interfaces:
         interface_name = interface['name']
 
         for retry in range(3):
             try:
-                # 添加请求间隔，避免触发限流
-                if retry > 0 or interface_name != 'stock_zh_a_hist':
+                # 重试时添加请求间隔
+                if retry > 0:
                     time.sleep(random.uniform(0.5, 1.5))
 
-                # 调用接口
-                df = interface['func'](stock_code)
+                # 调用接口 (传入日期范围)
+                df = interface['func'](stock_code, start_str, end_str)
 
                 if df is None or df.empty:
                     # 接口返回空数据，尝试下一个接口
@@ -92,7 +128,7 @@ def fetch_stock_data(stock_code, start_date=None, end_date=None):
                 # 解析数据
                 result = parse_interface_data(df, interface)
 
-                # 筛选日期范围
+                # 筛选日期范围 (再次过滤确保精确)
                 if start_date:
                     result = [r for r in result if r['date'] >= start_date]
                 if end_date:
@@ -208,70 +244,6 @@ def init_stock_list():
     return False
 
 
-def generate_test_data():
-    """生成测试数据"""
-    print("生成测试数据...")
-    # 生成50只测试股票
-    test_stocks = [
-        ('600000', '浦发银行'),
-        ('600016', '民生银行'),
-        ('600019', '宝钢股份'),
-        ('600028', '中国石化'),
-        ('600030', '中信证券'),
-        ('600036', '招商银行'),
-        ('600048', '保利发展'),
-        ('600104', '上汽集团'),
-        ('600176', '中国巨石'),
-        ('600519', '贵州茅台'),
-        ('600887', '伊利股份'),
-        ('601012', '隆基绿能'),
-        ('601088', '上海机场'),
-        ('601166', '兴业银行'),
-        ('601288', '农业银行'),
-        ('601318', '中国平安'),
-        ('601398', '工商银行'),
-        ('601857', '中国石油'),
-        ('601988', '中国银行'),
-        ('603259', '药明康德'),
-        ('000001', '平安银行'),
-        ('000002', '万科A'),
-        ('000063', '中兴通讯'),
-        ('000333', '美的集团'),
-        ('000651', '格力电器'),
-        ('000858', '五粮液'),
-        ('002594', '比亚迪'),
-        ('002714', '牧原股份'),
-        ('300750', '宁德时代'),
-        ('300059', '东方财富'),
-    ]
-
-    # 生成最近60个交易日的日期
-    today = datetime.now()
-    dates = []
-    for i in range(60, 0, -1):
-        date = today - timedelta(days=i)
-        if date.weekday() < 5:  # 跳过周末
-            dates.append(date.strftime('%Y-%m-%d'))
-
-    for code, name in test_stocks:
-        database.upsert_stock(code, name, None)
-
-        # 生成随机价格数据
-        base_price = random.uniform(10, 500)
-        for date in dates:
-            # 添加随机波动
-            change = random.uniform(-0.05, 0.05)
-            base_price = base_price * (1 + change)
-            database.insert_daily_data(code, date, round(base_price, 2), 1.0)
-
-    database.update_metadata('last_update', dates[-1])
-    print(f"测试数据生成完成: {len(test_stocks)} 只股票, {len(dates)} 天数据")
-    return True
-
-
-def use_test_data():
-    """使用测试数据"""
-    return generate_test_data()
 
 
 def fetch_all_stocks_daily_data(start_date, end_date, progress_callback=None):

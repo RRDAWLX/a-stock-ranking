@@ -41,3 +41,6 @@ npm-debug.log*
 
 # Local config
 .claude/settings.local.json
+
+# Temp files
+akshare-doc.txt
