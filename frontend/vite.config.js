@@ -10,6 +10,8 @@ export default defineConfig({
     port: config.frontend.port
   },
   define: {
-    __BACKEND_PORT__: JSON.stringify(config.backend.port)
+    __BACKEND_PORT__: JSON.stringify(config.backend.port),
+    // 支持环境变量配置后端主机地址
+    __BACKEND_HOST__: JSON.stringify(process.env.VITE_BACKEND_HOST || 'localhost')
   }
 })

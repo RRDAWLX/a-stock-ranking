@@ -1,48 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { getInitStatus, calculateWeightedReturn, getWeightedReturnHeatmap, updateData, getUpdateStatus, cancelUpdate, calculateWeightedRank, getWeightedRankHeatmap } from '../api'
+import { getInitStatus, updateData, getUpdateStatus, cancelUpdate } from '../api'
 
-const AppContext = createContext(null)
+// SystemContext: 系统状态、更新功能、错误处理
+const SystemContext = createContext(null)
 
-export function AppProvider({ children }) {
-  // 系统状态
+export function SystemProvider({ children }) {
   const [status, setStatus] = useState(null)
   const [statusLoading, setStatusLoading] = useState(true)
-
-  // 更新相关
   const [updating, setUpdating] = useState(false)
   const [updateProgress, setUpdateProgress] = useState(0)
   const [updateMessage, setUpdateMessage] = useState('')
-
-  // 排行榜数据
-  const [rankingData, setRankingData] = useState([])
-  const [rankingLoading, setRankingLoading] = useState(false)
-  const [rankingFormula, setRankingFormula] = useState(null)
-  const [rankingTotalCount, setRankingTotalCount] = useState(0)
-
-  // 热力图数据
-  const [heatmapData, setHeatmapData] = useState({})
-  const [heatmapDates, setHeatmapDates] = useState([])
-  const [heatmapLoading, setHeatmapLoading] = useState(false)
-  const [heatmapFormula, setHeatmapFormula] = useState(null)
-  const [heatmapTotalCount, setHeatmapTotalCount] = useState(0)
-
-  // 加权排行分数据
-  const [weightedRankData, setWeightedRankData] = useState([])
-  const [weightedRankLoading, setWeightedRankLoading] = useState(false)
-  const [weightedRankFormula, setWeightedRankFormula] = useState(null)
-  const [weightedRankTotalCount, setWeightedRankTotalCount] = useState(0)
-
-  // 加权排行分热力图数据
-  const [weightedRankHeatmapData, setWeightedRankHeatmapData] = useState({})
-  const [weightedRankHeatmapDates, setWeightedRankHeatmapDates] = useState([])
-  const [weightedRankHeatmapLoading, setWeightedRankHeatmapLoading] = useState(false)
-  const [weightedRankHeatmapFormula, setWeightedRankHeatmapFormula] = useState(null)
-  const [weightedRankHeatmapTotalCount, setWeightedRankHeatmapTotalCount] = useState(0)
-
-  // 错误信息
   const [error, setError] = useState(null)
 
-  // 加载初始化状态
   useEffect(() => {
     loadStatus()
   }, [])
@@ -54,81 +23,11 @@ export function AppProvider({ children }) {
       setStatusLoading(false)
     } catch (err) {
       console.error('加载状态失败:', err)
+      setError(err.message)
       setStatusLoading(false)
     }
   }
 
-  // 计算加权收益排行榜数据
-  const fetchWeightedReturnRanking = useCallback(async (formula) => {
-    setRankingLoading(true)
-    setRankingFormula(formula)
-    try {
-      const result = await calculateWeightedReturn(formula)
-      if (result.data) {
-        setRankingData(result.data)
-        setRankingTotalCount(result.total_count || 0)
-      }
-    } catch (err) {
-      console.error('计算失败:', err)
-      setError('获取排行榜数据失败')
-    }
-    setRankingLoading(false)
-  }, [])
-
-  // 计算加权收益热力图数据
-  const fetchWeightedReturnHeatmap = useCallback(async (formula, days = 10) => {
-    setHeatmapLoading(true)
-    setHeatmapFormula(formula)
-    try {
-      const result = await getWeightedReturnHeatmap(formula, days)
-      if (result.data) {
-        setHeatmapData(result.data)
-        setHeatmapDates(result.dates || [])
-        setHeatmapTotalCount(result.total_count || 0)
-      }
-    } catch (err) {
-      console.error('计算热力图失败:', err)
-      setError('获取热力图数据失败')
-    }
-    setHeatmapLoading(false)
-  }, [])
-
-  // 计算加权排行分数据
-  const fetchWeightedRank = useCallback(async (formula) => {
-    setWeightedRankLoading(true)
-    setWeightedRankFormula(formula)
-    try {
-      const result = await calculateWeightedRank(formula)
-      if (result.data) {
-        setWeightedRankData(result.data)
-        setWeightedRankTotalCount(result.total_count || 0)
-      }
-    } catch (err) {
-      console.error('计算加权排行分失败:', err)
-      setError('获取加权排行分数据失败')
-    }
-    setWeightedRankLoading(false)
-  }, [])
-
-  // 计算加权排行分热力图数据
-  const fetchWeightedRankHeatmap = useCallback(async (formula, days = 10) => {
-    setWeightedRankHeatmapLoading(true)
-    setWeightedRankHeatmapFormula(formula)
-    try {
-      const result = await getWeightedRankHeatmap(formula, days)
-      if (result.data) {
-        setWeightedRankHeatmapData(result.data)
-        setWeightedRankHeatmapDates(result.dates || [])
-        setWeightedRankHeatmapTotalCount(result.total_count || 0)
-      }
-    } catch (err) {
-      console.error('计算加权排行分热力图失败:', err)
-      setError('获取加权排行分热力图数据失败')
-    }
-    setWeightedRankHeatmapLoading(false)
-  }, [])
-
-  // 处理数据更新
   const handleUpdate = useCallback(async () => {
     setUpdating(true)
     setError(null)
@@ -137,26 +36,22 @@ export function AppProvider({ children }) {
 
     try {
       const result = await updateData()
-      if (result.success && result.async) {
+      if (result.async) {
         pollUpdateStatus()
-      } else if (result.success) {
+      } else {
         const newStatus = await getInitStatus()
         setStatus(newStatus)
         setUpdating(false)
         setUpdateProgress(100)
         setUpdateMessage('更新完成')
-      } else {
-        setError(result.message || '更新失败')
-        setUpdating(false)
       }
     } catch (err) {
       console.error('更新失败:', err)
-      setError('网络错误，请检查后端服务是否正常运行')
+      setError(err.message)
       setUpdating(false)
     }
   }, [])
 
-  // 轮询更新状态
   const pollUpdateStatus = useCallback(async () => {
     try {
       const updateStatus = await getUpdateStatus()
@@ -180,7 +75,6 @@ export function AppProvider({ children }) {
     }
   }, [])
 
-  // 取消更新
   const handleCancelUpdate = useCallback(async () => {
     try {
       await cancelUpdate()
@@ -193,60 +87,205 @@ export function AppProvider({ children }) {
   }, [])
 
   const value = {
-    // 系统状态
     status,
     statusLoading,
     loadStatus,
-
-    // 更新相关
     updating,
     updateProgress,
     updateMessage,
     handleUpdate,
     handleCancelUpdate,
+    error,
+    setError
+  }
 
-    // 加权收益排行榜
+  return <SystemContext.Provider value={value}>{children}</SystemContext.Provider>
+}
+
+export function useSystem() {
+  const context = useContext(SystemContext)
+  if (!context) {
+    throw new Error('useSystem must be used within SystemProvider')
+  }
+  return context
+}
+
+// WeightedReturnContext: 加权收益相关
+const WeightedReturnContext = createContext(null)
+
+export function WeightedReturnProvider({ children }) {
+  const [rankingData, setRankingData] = useState([])
+  const [rankingLoading, setRankingLoading] = useState(false)
+  const [rankingFormula, setRankingFormula] = useState(null)
+  const [rankingTotalCount, setRankingTotalCount] = useState(0)
+
+  const [heatmapData, setHeatmapData] = useState({})
+  const [heatmapDates, setHeatmapDates] = useState([])
+  const [heatmapLoading, setHeatmapLoading] = useState(false)
+  const [heatmapFormula, setHeatmapFormula] = useState(null)
+  const [heatmapTotalCount, setHeatmapTotalCount] = useState(0)
+
+  const fetchRanking = useCallback(async (formula) => {
+    setRankingLoading(true)
+    setRankingFormula(formula)
+    try {
+      const result = await import('../api').then(m => m.calculateWeightedReturn(formula))
+      setRankingData(result.items || result.data || [])
+      setRankingTotalCount(result.total_count || 0)
+    } catch (err) {
+      console.error('计算失败:', err)
+    }
+    setRankingLoading(false)
+  }, [])
+
+  const fetchHeatmap = useCallback(async (formula, days = 10) => {
+    setHeatmapLoading(true)
+    setHeatmapFormula(formula)
+    try {
+      const result = await import('../api').then(m => m.getWeightedReturnHeatmap(formula, days))
+      setHeatmapData(result.items || result.data || {})
+      setHeatmapDates(result.dates || [])
+      setHeatmapTotalCount(result.total_count || 0)
+    } catch (err) {
+      console.error('计算热力图失败:', err)
+    }
+    setHeatmapLoading(false)
+  }, [])
+
+  const value = {
     rankingData,
     rankingLoading,
     rankingFormula,
     rankingTotalCount,
-    fetchWeightedReturnRanking,
-
-    // 加权收益热力图
+    fetchRanking,
     heatmapData,
     heatmapDates,
     heatmapLoading,
     heatmapFormula,
     heatmapTotalCount,
-    fetchWeightedReturnHeatmap,
-
-    // 加权排行分
-    weightedRankData,
-    weightedRankLoading,
-    weightedRankFormula,
-    weightedRankTotalCount,
-    fetchWeightedRank,
-
-    // 加权排行分热力图
-    weightedRankHeatmapData,
-    weightedRankHeatmapDates,
-    weightedRankHeatmapLoading,
-    weightedRankHeatmapFormula,
-    weightedRankHeatmapTotalCount,
-    fetchWeightedRankHeatmap,
-
-    // 错误
-    error,
-    setError
+    fetchHeatmap
   }
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>
+  return <WeightedReturnContext.Provider value={value}>{children}</WeightedReturnContext.Provider>
 }
 
-export function useApp() {
-  const context = useContext(AppContext)
+export function useWeightedReturn() {
+  const context = useContext(WeightedReturnContext)
   if (!context) {
-    throw new Error('useApp must be used within AppProvider')
+    throw new Error('useWeightedReturn must be used within WeightedReturnProvider')
   }
   return context
+}
+
+// WeightedRankContext: 加权排行分相关
+const WeightedRankContext = createContext(null)
+
+export function WeightedRankProvider({ children }) {
+  const [rankData, setRankData] = useState([])
+  const [rankLoading, setRankLoading] = useState(false)
+  const [rankFormula, setRankFormula] = useState(null)
+  const [rankTotalCount, setRankTotalCount] = useState(0)
+
+  const [heatmapData, setHeatmapData] = useState({})
+  const [heatmapDates, setHeatmapDates] = useState([])
+  const [heatmapLoading, setHeatmapLoading] = useState(false)
+  const [heatmapFormula, setHeatmapFormula] = useState(null)
+  const [heatmapTotalCount, setHeatmapTotalCount] = useState(0)
+
+  const fetchRank = useCallback(async (formula) => {
+    setRankLoading(true)
+    setRankFormula(formula)
+    try {
+      const result = await import('../api').then(m => m.calculateWeightedRank(formula))
+      setRankData(result.items || result.data || [])
+      setRankTotalCount(result.total_count || 0)
+    } catch (err) {
+      console.error('计算加权排行分失败:', err)
+    }
+    setRankLoading(false)
+  }, [])
+
+  const fetchHeatmap = useCallback(async (formula, days = 10) => {
+    setHeatmapLoading(true)
+    setHeatmapFormula(formula)
+    try {
+      const result = await import('../api').then(m => m.getWeightedRankHeatmap(formula, days))
+      setHeatmapData(result.items || result.data || {})
+      setHeatmapDates(result.dates || [])
+      setHeatmapTotalCount(result.total_count || 0)
+    } catch (err) {
+      console.error('计算加权排行分热力图失败:', err)
+    }
+    setHeatmapLoading(false)
+  }, [])
+
+  const value = {
+    rankData,
+    rankLoading,
+    rankFormula,
+    rankTotalCount,
+    fetchRank,
+    heatmapData,
+    heatmapDates,
+    heatmapLoading,
+    heatmapFormula,
+    heatmapTotalCount,
+    fetchHeatmap
+  }
+
+  return <WeightedRankContext.Provider value={value}>{children}</WeightedRankContext.Provider>
+}
+
+export function useWeightedRank() {
+  const context = useContext(WeightedRankContext)
+  if (!context) {
+    throw new Error('useWeightedRank must be used within WeightedRankProvider')
+  }
+  return context
+}
+
+// 组合Provider，便于使用
+export function AppProvider({ children }) {
+  return (
+    <SystemProvider>
+      <WeightedReturnProvider>
+        <WeightedRankProvider>
+          {children}
+        </WeightedRankProvider>
+      </WeightedReturnProvider>
+    </SystemProvider>
+  )
+}
+
+// 兼容旧的useApp hook（deprecated，建议使用具体的useXxx hook）
+export function useApp() {
+  const system = useSystem()
+  const weightedReturn = useWeightedReturn()
+  const weightedRank = useWeightedRank()
+
+  return {
+    ...system,
+    rankingData: weightedReturn.rankingData,
+    rankingLoading: weightedReturn.rankingLoading,
+    rankingFormula: weightedReturn.rankingFormula,
+    rankingTotalCount: weightedReturn.rankingTotalCount,
+    fetchWeightedReturnRanking: weightedReturn.fetchRanking,
+    heatmapData: weightedReturn.heatmapData,
+    heatmapDates: weightedReturn.heatmapDates,
+    heatmapLoading: weightedReturn.heatmapLoading,
+    heatmapFormula: weightedReturn.heatmapFormula,
+    heatmapTotalCount: weightedReturn.heatmapTotalCount,
+    fetchWeightedReturnHeatmap: weightedReturn.fetchHeatmap,
+    weightedRankData: weightedRank.rankData,
+    weightedRankLoading: weightedRank.rankLoading,
+    weightedRankFormula: weightedRank.rankFormula,
+    weightedRankTotalCount: weightedRank.rankTotalCount,
+    fetchWeightedRank: weightedRank.fetchRank,
+    weightedRankHeatmapData: weightedRank.heatmapData,
+    weightedRankHeatmapDates: weightedRank.heatmapDates,
+    weightedRankHeatmapLoading: weightedRank.heatmapLoading,
+    weightedRankHeatmapFormula: weightedRank.heatmapFormula,
+    weightedRankHeatmapTotalCount: weightedRank.heatmapTotalCount,
+    fetchWeightedRankHeatmap: weightedRank.fetchHeatmap
+  }
 }
