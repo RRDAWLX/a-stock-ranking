@@ -4,7 +4,7 @@ from app import database
 def calculate_return_rate(stock_code, days):
     """
     计算股票近n日的收益率
-    使用前复权价格计算
+    使用不复权价格计算
     """
     data = database.get_stock_daily_data(stock_code)
 

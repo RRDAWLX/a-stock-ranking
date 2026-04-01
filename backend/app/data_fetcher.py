@@ -18,7 +18,7 @@ def get_history_interfaces(stock_code=None):
         {
             'name': 'stock_zh_a_hist',
             'func': lambda code, start, end: ak.stock_zh_a_hist(
-                symbol=code, period="daily", start_date=start, end_date=end, adjust="qfq"
+                symbol=code, period="daily", start_date=start, end_date=end, adjust=""
             ),
             'date_col': '日期',
             'close_col': '收盘',
@@ -33,7 +33,7 @@ def get_history_interfaces(stock_code=None):
     interfaces.append({
         'name': 'stock_zh_a_hist_tx',
         'func': lambda code, start, end: ak.stock_zh_a_hist_tx(
-            symbol=_add_market_prefix(code), start_date=start, end_date=end, adjust="qfq"
+            symbol=_add_market_prefix(code), start_date=start, end_date=end, adjust=""
         ),
         'date_col': 'date',
         'close_col': 'close',
@@ -58,15 +58,6 @@ def _add_market_prefix(code):
         return f'sz{code}'
 
 
-def is_rate_limit_error(e):
-    """判断是否是限流错误"""
-    error_msg = str(e).lower()
-    return any(keyword in error_msg for keyword in [
-        'too many requests', '429', 'rate limit', '请求过于频繁',
-        '访问频率过高', 'too frequent', '频繁'
-    ])
-
-
 def parse_interface_data(df, interface_info):
     """解析不同接口返回的数据格式"""
     result = []
@@ -86,8 +77,7 @@ def parse_interface_data(df, interface_info):
             if close is not None:
                 result.append({
                     'date': date,
-                    'close': float(close),
-                    'adj_factor': 1.0
+                    'close': float(close)
                 })
         except Exception:
             continue
@@ -96,7 +86,7 @@ def parse_interface_data(df, interface_info):
 
 
 def fetch_stock_data(stock_code, start_date=None, end_date=None):
-    """获取单只股票的历史数据（前复权），支持接口自动切换
+    """获取单只股票的历史数据（不复权），支持接口自动切换
 
     Args:
         stock_code: 股票代码 (不带市场标识)
@@ -112,54 +102,29 @@ def fetch_stock_data(stock_code, start_date=None, end_date=None):
     for interface in interfaces:
         interface_name = interface['name']
 
-        for retry in range(3):
-            try:
-                # 重试时添加请求间隔
-                if retry > 0:
-                    time.sleep(random.uniform(0.5, 1.5))
+        try:
+            df = interface['func'](stock_code, start_str, end_str)
 
-                # 调用接口 (传入日期范围)
-                df = interface['func'](stock_code, start_str, end_str)
+            if df is None or df.empty:
+                # 接口返回空数据，尝试下一个接口
+                continue
 
-                if df is None or df.empty:
-                    # 接口返回空数据，尝试下一个接口
-                    break
+            # 解析数据
+            result = parse_interface_data(df, interface)
 
-                # 解析数据
-                result = parse_interface_data(df, interface)
+            # 筛选日期范围 (再次过滤确保精确)
+            if start_date:
+                result = [r for r in result if r['date'] >= start_date]
+            if end_date:
+                result = [r for r in result if r['date'] <= end_date]
 
-                # 筛选日期范围 (再次过滤确保精确)
-                if start_date:
-                    result = [r for r in result if r['date'] >= start_date]
-                if end_date:
-                    result = [r for r in result if r['date'] <= end_date]
+            if result:
+                print(f"[{interface_name}] 股票 {stock_code} 获取 {len(result)} 条数据")
+                return result
 
-                if result:
-                    print(f"[{interface_name}] 股票 {stock_code} 获取 {len(result)} 条数据")
-                    return result
-
-                # 数据为空，尝试下一个接口
-                break
-
-            except Exception as e:
-                last_error = e
-                error_type = type(e).__name__
-
-                if is_rate_limit_error(e):
-                    # 限流时等待更长时间
-                    wait_time = 30 + random.uniform(0, 30)
-                    print(f"[{interface_name}] 触发限流，股票 {stock_code}，等待 {wait_time:.1f}s")
-                    time.sleep(wait_time)
-                else:
-                    # 普通错误，短暂等待后重试
-                    wait_time = (2 ** retry) + random.uniform(0, 1)
-                    print(f"[{interface_name}] 股票 {stock_code} 失败 ({error_type}): {e}")
-                    if retry < 2:
-                        time.sleep(wait_time)
-
-                # 如果是限流错误，直接跳过当前接口
-                if is_rate_limit_error(e):
-                    break
+        except Exception as e:
+            error_type = type(e).__name__
+            print(f"[{interface_name}] 股票 {stock_code} 失败 ({error_type}): {e}")
 
     # 所有接口都失败
     return []
@@ -179,7 +144,7 @@ def get_recent_trade_dates_akshare(days=60):
 
     # 检查缓存是否有效（未过期）
     if _trade_dates_cache is not None and (current_time - _trade_dates_cache_time) < CACHE_EXPIRE_SECONDS:
-        return _trade_dates_cache[:days] if days <= len(_trade_dates_cache) else _trade_dates_cache
+        return _trade_dates_cache[-days:] if days <= len(_trade_dates_cache) else _trade_dates_cache
 
     # 缓存过期，重新获取
     old_cache = _trade_dates_cache  # 保留旧缓存以便失败时使用
@@ -193,16 +158,16 @@ def get_recent_trade_dates_akshare(days=60):
             if index_df is None or index_df.empty:
                 break  # 尝试使用旧缓存
 
-            # 按日期降序排列，取最近300个
-            dates = index_df['date'].tail(300).tolist()
-            # 降序变升序：先 reverse 再转日期排序
-            all_dates = tuple(str(d) for d in sorted(dates))
+            # 获取所有日期并转换为字符串
+            dates = [str(d) for d in index_df['date'].tolist()]
+            # 按日期升序排序（旧→新）
+            all_dates = tuple(sorted(dates))
 
             # 更新缓存
             _trade_dates_cache = all_dates
             _trade_dates_cache_time = current_time
 
-            # 取最后 days 个（即最近的 days 个）
+            # 取最后 days 个（即最近的 days 个交易日）
             return all_dates[-days:] if days <= len(all_dates) else all_dates
         except Exception as e:
             print(f"获取交易日历失败 (尝试 {retry+1}/3): {e}")
@@ -232,7 +197,7 @@ def init_stock_list():
                 code = row['code']
                 name = row['name']
                 # 简单获取代码，不获取上市日期
-                database.upsert_stock(code, name, None)
+                database.upsert_stock(code, name)
                 count += 1
 
             print(f"已更新 {count} 只股票")
@@ -277,8 +242,7 @@ def fetch_all_stocks_daily_data(start_date, end_date, progress_callback=None):
                         database.insert_daily_data(
                             code,
                             item['date'],
-                            item['close'],
-                            item['adj_factor']
+                            item['close']
                         )
                 success += 1
             else:
@@ -302,7 +266,7 @@ def fetch_all_stocks_daily_data(start_date, end_date, progress_callback=None):
                     for item in data:
                         if item['close'] is not None:
                             database.insert_daily_data(
-                                code, item['date'], item['close'], item['adj_factor']
+                                code, item['date'], item['close']
                             )
                     success += 1
                     failed -= 1
@@ -330,7 +294,7 @@ def check_and_update_stock_names():
         for _, row in df.iterrows():
             code = row['code']
             name = row['name']
-            database.upsert_stock(code, name, None)
+            database.upsert_stock(code, name)
             updated += 1
 
         print(f"已更新 {updated} 只股票信息")
@@ -437,7 +401,7 @@ def incremental_update(progress_callback=None):
             if data:
                 # 批量插入数据
                 insert_data = [
-                    (code, item['date'], item['close'], item['adj_factor'])
+                    (code, item['date'], item['close'])
                     for item in data if item['close'] is not None
                 ]
                 if insert_data:

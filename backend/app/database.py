@@ -30,8 +30,7 @@ def init_db():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS stocks (
                 code TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                list_date TEXT
+                name TEXT NOT NULL
             )
         """)
 
@@ -42,7 +41,6 @@ def init_db():
                 stock_code TEXT NOT NULL,
                 date TEXT NOT NULL,
                 close REAL,
-                adj_factor REAL,
                 UNIQUE(stock_code, date)
             )
         """)
@@ -155,7 +153,7 @@ def get_stock_list():
     if _stock_list_cache is None:
         with get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT code, name, list_date FROM stocks ORDER BY code")
+            cursor.execute("SELECT code, name FROM stocks ORDER BY code")
             _stock_list_cache = [dict(row) for row in cursor.fetchall()]
     return _stock_list_cache
 
@@ -171,7 +169,7 @@ def get_stock_daily_data(stock_code, start_date=None, end_date=None):
     with get_connection() as conn:
         cursor = conn.cursor()
 
-        query = "SELECT date, close, adj_factor FROM daily_data WHERE stock_code = ?"
+        query = "SELECT date, close FROM daily_data WHERE stock_code = ?"
         params = [stock_code]
 
         if start_date:
@@ -215,34 +213,33 @@ def insert_daily_data_batch(data_list):
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.executemany("""
-            INSERT OR REPLACE INTO daily_data (stock_code, date, close, adj_factor)
-            VALUES (?, ?, ?, ?)
+            INSERT OR REPLACE INTO daily_data (stock_code, date, close)
+            VALUES (?, ?, ?)
         """, data_list)
         conn.commit()
 
 
-def upsert_stock(code, name, list_date=None):
+def upsert_stock(code, name):
     """插入或更新股票信息"""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO stocks (code, name, list_date)
-            VALUES (?, ?, ?)
+            INSERT INTO stocks (code, name)
+            VALUES (?, ?)
             ON CONFLICT(code) DO UPDATE SET
-                name = excluded.name,
-                list_date = excluded.list_date
-        """, (code, name, list_date))
+                name = excluded.name
+        """, (code, name))
         conn.commit()
 
 
-def insert_daily_data(stock_code, date, close, adj_factor):
+def insert_daily_data(stock_code, date, close):
     """插入每日行情数据"""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT OR REPLACE INTO daily_data (stock_code, date, close, adj_factor)
-            VALUES (?, ?, ?, ?)
-        """, (stock_code, date, close, adj_factor))
+            INSERT OR REPLACE INTO daily_data (stock_code, date, close)
+            VALUES (?, ?, ?)
+        """, (stock_code, date, close))
         conn.commit()
 
 
