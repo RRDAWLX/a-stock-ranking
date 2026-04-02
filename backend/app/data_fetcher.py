@@ -12,7 +12,7 @@ def get_history_interfaces(stock_code=None):
 
     Args:
         stock_code: 股票代码，用于判断是否是北交所股票
-                   北交所股票(83/87/88开头)只使用东财接口，腾讯接口不支持
+                   北交所股票(83/87/88/92开头)只使用东财接口，腾讯接口不支持
     """
     interfaces = [
         {
@@ -25,8 +25,9 @@ def get_history_interfaces(stock_code=None):
         },
     ]
 
-    # 北交所股票(83/87/88开头)只使用东财接口，腾讯接口不支持北交所
-    if stock_code and (stock_code.startswith('83') or stock_code.startswith('87') or stock_code.startswith('88')):
+    # 北交所股票(83/87/88/92开头)只使用东财接口，腾讯接口不支持北交所
+    if stock_code and (stock_code.startswith('83') or stock_code.startswith('87') or
+                       stock_code.startswith('88') or stock_code.startswith('92')):
         return interfaces
 
     # 非北交所股票，添加腾讯接口作为备用
@@ -47,12 +48,12 @@ def _add_market_prefix(code):
 
     市场标识:
     - 6 开头: 沪市 (sh)
-    - 83/87/88 开头: 北交所 (bj) - 注意: 腾讯接口不支持北交所，此函数仅用于代码转换
+    - 83/87/88/92 开头: 北交所 (bj) - 注意: 腾讯接口不支持北交所，此函数仅用于代码转换
     - 其他: 深市 (sz)，包括创业板(30)、主板(00/002/003)
     """
     if code.startswith('6'):
         return f'sh{code}'
-    elif code.startswith('83') or code.startswith('87') or code.startswith('88'):
+    elif code.startswith('83') or code.startswith('87') or code.startswith('88') or code.startswith('92'):
         return f'bj{code}'
     else:
         return f'sz{code}'
