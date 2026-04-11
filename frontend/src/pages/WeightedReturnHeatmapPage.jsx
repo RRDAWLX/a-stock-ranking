@@ -36,6 +36,7 @@ export default function WeightedReturnHeatmapPage() {
       <div className="content">
         <WeightedReturnFormulaForm
           title="加权收益热力图计算公式"
+          description="计算公式: 近N日收益率 × 权重，值越大表示收益越好"
           initialFormula={heatmapFormula || DEFAULT_FORMULA}
           onCalculate={handleCalculate}
         />
