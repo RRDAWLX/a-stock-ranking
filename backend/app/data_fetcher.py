@@ -6,6 +6,56 @@ import random
 from app import database
 
 
+# ========== 接口故障检测机制 ==========
+# 当某个接口连续失败达到阈值时，暂时禁用该接口一段时间
+_interface_fail_counts = {}  # 记录每个接口的连续失败次数
+_interface_disabled_until = {}  # 记录接口禁用截止时间
+_last_fail_time = 0  # 上次失败的时间
+_request_delay_multiplier = 1.0  # 请求延迟倍数（指数退避）
+FAIL_THRESHOLD = 3  # 连续失败阈值
+DISABLE_SECONDS = 60  # 禁用时长（秒）
+DELAY_RECOVERY_SECONDS = 30  # 延迟倍数恢复时间（秒）
+
+
+def _is_interface_disabled(interface_name):
+    """检查接口是否被暂时禁用"""
+    if interface_name not in _interface_disabled_until:
+        return False
+    if time.time() < _interface_disabled_until[interface_name]:
+        remaining = _interface_disabled_until[interface_name] - time.time()
+        print(f"[限流保护] {interface_name} 接口暂时禁用，剩余 {remaining:.0f} 秒")
+        return True
+    # 禁用时间已过，清除状态
+    del _interface_disabled_until[interface_name]
+    _interface_fail_counts[interface_name] = 0
+    return False
+
+
+def _record_interface_result(interface_name, success):
+    """记录接口调用结果，用于故障检测"""
+    global _last_fail_time, _request_delay_multiplier
+    if success:
+        _interface_fail_counts[interface_name] = 0
+        # 成功后逐渐恢复延迟倍数
+        if time.time() - _last_fail_time > DELAY_RECOVERY_SECONDS:
+            _request_delay_multiplier = max(1.0, _request_delay_multiplier * 0.5)
+    else:
+        _interface_fail_counts[interface_name] = _interface_fail_counts.get(interface_name, 0) + 1
+        _last_fail_time = time.time()
+        # 失败时增加延迟倍数（指数退避）
+        _request_delay_multiplier = min(4.0, _request_delay_multiplier * 1.5)
+        # 达到阈值时禁用接口
+        if _interface_fail_counts[interface_name] >= FAIL_THRESHOLD:
+            _interface_disabled_until[interface_name] = time.time() + DISABLE_SECONDS
+            print(f"[限流保护] {interface_name} 接口连续失败 {FAIL_THRESHOLD} 次，暂时禁用 {DISABLE_SECONDS} 秒")
+
+
+def _get_request_delay():
+    """获取当前请求延迟（考虑指数退避）"""
+    base_delay = random.uniform(0.5, 1.5)
+    return base_delay * _request_delay_multiplier
+
+
 # ========== 历史数据接口配置 ==========
 def get_history_interfaces(stock_code=None):
     """定义可用的历史数据接口，按优先级排序
@@ -103,11 +153,16 @@ def fetch_stock_data(stock_code, start_date=None, end_date=None):
     for interface in interfaces:
         interface_name = interface['name']
 
+        # 检查接口是否被暂时禁用
+        if _is_interface_disabled(interface_name):
+            continue  # 跳过被禁用的接口
+
         try:
             df = interface['func'](stock_code, start_str, end_str)
 
             if df is None or df.empty:
                 # 接口返回空数据，尝试下一个接口
+                _record_interface_result(interface_name, False)
                 continue
 
             # 解析数据
@@ -121,11 +176,15 @@ def fetch_stock_data(stock_code, start_date=None, end_date=None):
 
             if result:
                 print(f"[{interface_name}] 股票 {stock_code} 获取 {len(result)} 条数据")
+                _record_interface_result(interface_name, True)
                 return result
+            else:
+                _record_interface_result(interface_name, False)
 
         except Exception as e:
             error_type = type(e).__name__
             print(f"[{interface_name}] 股票 {stock_code} 失败 ({error_type}): {e}")
+            _record_interface_result(interface_name, False)
 
     # 所有接口都失败
     return []
@@ -231,9 +290,9 @@ def fetch_all_stocks_daily_data(start_date, end_date, progress_callback=None):
             progress = 30 + (i + 1) / total * 69
             progress_callback(round(progress, 2))
 
-        # 添加请求间隔，避免触发限流
+        # 添加请求间隔，避免触发限流（使用动态延迟）
         if i > 0:
-            time.sleep(random.uniform(0.3, 1.0))
+            time.sleep(_get_request_delay())
 
         try:
             data = fetch_stock_data(code, start_date, end_date)
@@ -393,9 +452,9 @@ def incremental_update(progress_callback=None):
             progress = 50 + (i + 1) / need_update_count * 49
             progress_callback(round(progress, 2))
 
-        # 添加请求间隔，避免触发限流
+        # 添加请求间隔，避免触发限流（使用动态延迟）
         if i > 0:
-            time.sleep(random.uniform(0.3, 1.0))
+            time.sleep(_get_request_delay())
 
         try:
             data = fetch_stock_data(code, fetch_start, fetch_end)

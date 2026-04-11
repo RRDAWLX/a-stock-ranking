@@ -15,6 +15,19 @@ A股股票收益排行系统 - A web application for analyzing and ranking Chine
 
 ## Commands
 
+### First-time setup
+```bash
+# Backend dependencies
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Frontend dependencies
+cd frontend
+npm install
+```
+
 ### Start both services (recommended)
 ```bash
 ./start.sh
@@ -53,17 +66,31 @@ Port configuration is centralized in `config.json` at the project root:
 ```
 Both `vite.config.js` and `run.py` read from this file.
 
+Production/deployment environment variables:
+- `VITE_BACKEND_HOST` — backend hostname (default: `localhost`), set in `vite.config.js` define
+- `FLASK_DEBUG` — Flask debug mode (default: `1`), set to `0` for production
+
+## Database
+
+SQLite at `data/stocks.db`, two tables:
+- `stocks` — stock code (PK) and name
+- `daily_data` — stock_code, date, close price; unique on (stock_code, date)
+
+No ORM, uses raw `sqlite3` with `sqlite3.Row` for dict-like access.
+
 ## Architecture
 
 ### Backend (Flask)
 - `backend/run.py` - Entry point, reads config and starts server
 - `backend/app/main.py` - Flask app factory, blueprint registration
 - `backend/app/routes.py` - API endpoints with input validation
-- `backend/app/database.py` - SQLAlchemy database operations
+- `backend/app/database.py` - SQLite database operations (raw sqlite3, no ORM)
 - `backend/app/calculator.py` - Weighted return calculation logic and weighted ranking score logic
 - `backend/app/data_fetcher.py` - Stock data fetching via akshare API
-  - 支持东财、腾讯两个数据接口自动切换
+  - 支持东财(`stock_zh_a_hist`)、腾讯(`stock_zh_a_hist_tx`)两个数据接口自动切换
   - 北交所股票只使用东财接口（腾讯接口不支持北交所）
+  - 内置限流保护：接口连续失败3次自动禁用60秒，请求间隔指数退避（0.5-1.5s基础延迟 × 1.0-4.0倍数）
+  - 交易日历缓存1小时，股票列表带内存缓存
 
 ### Frontend (React + Vite)
 - `frontend/src/main.jsx` - Router configuration with react-router-dom
@@ -85,6 +112,8 @@ Both `vite.config.js` and `run.py` read from this file.
 1. Frontend calls `/api/weighted-rank/calculate` with formula: `[{days, weight}, ...]`
 2. Backend calculates ranking for each period, then computes weighted ranking score: `sum(rank[days] * weight)`
 3. Results sorted by ranking score (lower is better), returned as ranking list or heatmap data
+
+**两者关键区别：** 加权排行分API要求权重总和必须为1.0（`require_weight_sum=True`），加权收益API无此限制。
 
 ### Pages
 
@@ -119,31 +148,11 @@ Data update operations (`/api/update-data`) run asynchronously in background thr
 ## Project Structure
 
 ```
-├── backend/
-│   ├── app/
-│   │   ├── calculator.py    # 加权收益计算逻辑
-│   │   ├── data_fetcher.py  # 股票数据获取
-│   │   ├── database.py      # 数据库操作
-│   │   ├── main.py          # Flask 应用工厂
-│   │   └── routes.py        # API 路由
-│   ├── requirements.txt
-│   └── run.py               # 入口文件
-├── frontend/
-│   ├── src/
-│   │   ├── components/      # UI 组件
-│   │   ├── context/         # 状态管理
-│   │   ├── pages/           # 页面组件
-│   │   ├── utils/           # 工具函数
-│   │   ├── api.js           # API 用
-│   │   ├── App.jsx          # 布局组件
-│   │   └── main.jsx         # 入口文件
-│   └── package.json
-├── config.json              # 端口配置
-├── start.sh                 # 启动脚本
-├── data/                    # SQLite 数据库
-├── screenshots/             # 页面预览截图
-├── CLAUDE.md                # Claude Code 项目说明
-└── README.md                # 项目说明文档
+├── backend/app/             # Flask 后端（见 Architecture 部分说明）
+├── frontend/src/            # React 前端（见 Architecture 部分说明）
+├── data/                    # SQLite 数据库 (stocks.db)
+├── config.json              # 端口配置（前后端共用）
+└── start.sh                 # 同时启动前后端
 ```
 
 ## Notes
